@@ -43,7 +43,7 @@ public class Game implements Tickable, Renderable, InputListener {
         eventBus.register(RoomSwitchEvent.class, this::onRoomSwitch);
 
         try {
-            world = new World(this, Path.of("C:\\Users\\andyw\\Documents\\Dev\\Java\\CatchTheFlight\\src\\main\\resources\\world"));
+            world = new World(this, Path.of("src\\main\\resources\\world"));
             room = world.getRoom("lobby");
             player = room.player = new Player(room, Vector.mutable(2D, 2D), new Args(""));
         } catch (IOException e) {
