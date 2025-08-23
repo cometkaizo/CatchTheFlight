@@ -45,7 +45,8 @@ public class Game implements Tickable, Renderable, InputListener {
         try {
             world = new World(this, Path.of("src\\main\\resources\\world"));
             room = world.getRoom("lobby");
-            player = room.player = new Player(room, Vector.mutable(2D, 2D), new Args(""));
+            if (room.getCheckpoints().isEmpty()) throw new IllegalStateException("No respawn position");
+            player = room.player = new Player(room, Vector.mutableDouble(room.getCheckpoints().getFirst()), new Args(""));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -53,7 +54,6 @@ public class Game implements Tickable, Renderable, InputListener {
 
     private void onPlayerDeath(PlayerDeathEvent event) {
         if (event.player() != player) throw new IllegalStateException("Different players: " + player + " and " + event.player());
-        player.respawnAt(room.getRespawnPos());
         room.reset();
     }
 
@@ -106,11 +106,11 @@ public class Game implements Tickable, Renderable, InputListener {
     }
 
     public double toCoordX(int screenX) {
-        return cameraPosition.x + screenX / (double) settings.tileSize;
+        return cameraPosition.x + (screenX - app.getPanelSize().width / 2D) / (double) settings.tileSize;
     }
 
     public double toCoordY(int screenY) {
-        return cameraPosition.y + (app.getPanelSize().height - screenY) / (double) settings.tileSize;
+        return cameraPosition.y + (app.getPanelSize().height / 2D - screenY) / (double) settings.tileSize;
     }
 
     public void setup() {

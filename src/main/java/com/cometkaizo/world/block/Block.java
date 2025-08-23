@@ -6,6 +6,7 @@ import com.cometkaizo.io.data.CompoundData;
 import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
 import com.cometkaizo.screen.Renderable;
+import com.cometkaizo.world.entity.Entity;
 
 import java.awt.*;
 
@@ -16,7 +17,6 @@ public abstract class Block implements Tickable, Renderable, DataSerializable, R
     protected final Args originalArgs;
     public String name;
     public final Vector.ImmutableInt position;
-    private Image texture = getTexture();
 
     public Block(Room room, Vector.ImmutableInt position, Args args) {
         this.room = room;
@@ -31,17 +31,25 @@ public abstract class Block implements Tickable, Renderable, DataSerializable, R
         this.name = originalArgs.next();
     }
 
-    public abstract boolean isSolid();
+    public abstract boolean isSolid(Entity entity);
 
     @Override
     public void render(Canvas canvas) {
+        var texture = getTexture();
         if (texture == null) return;
-        canvas.renderImage(texture, (double) getX(), getY(), 0, -1);
+        canvas.renderImage(texture, (double) getX(), getY(), getTextureDeltaXFactor(), getTextureDeltaYFactor());
+    }
+    protected double getTextureDeltaXFactor() {
+        return 0;
+    }
+    protected double getTextureDeltaYFactor() {
+        return -1;
     }
     protected abstract String getTexturePath();
     private Image getTexture() {
-        if (getTexturePath() == null) return null;
-        return Assets.texture("blocks/" + getTexturePath());
+        var texturePath = getTexturePath();
+        if (texturePath == null) return null;
+        return Assets.texture("blocks/" + texturePath);
     }
 
     public String getNamespace() {

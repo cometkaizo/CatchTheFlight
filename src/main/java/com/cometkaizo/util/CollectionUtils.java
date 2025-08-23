@@ -190,13 +190,13 @@ public class CollectionUtils {
         return false;
     }
 
-    public static <T> T findMax(Collection<T> collection, Function<T, Integer> valueFunction) {
+    public static <T, C extends Comparable<C>> T findMax(Collection<T> collection, Function<T, C> valueFunction) {
         T largestElement = null;
-        Integer largestValue = null;
+        C largestValue = null;
 
         for (T element : collection) {
-            int value = valueFunction.apply(element);
-            if (largestValue == null || largestValue < value) {
+            C value = valueFunction.apply(element);
+            if (largestValue == null || largestValue.compareTo(value) < 0) {
                 largestValue = value;
                 largestElement = element;
             }
@@ -205,13 +205,13 @@ public class CollectionUtils {
         return largestElement;
     }
 
-    public static <T> T findMin(Collection<T> collection, Function<T, Integer> valueFunction) {
+    public static <T, C extends Comparable<C>> T findMin(Collection<T> collection, Function<T, C> valueFunction) {
         T smallestElement = null;
-        Integer smallestValue = null;
+        C smallestValue = null;
 
         for (T element : collection) {
-            int value = valueFunction.apply(element);
-            if (smallestValue == null || smallestValue > value) {
+            C value = valueFunction.apply(element);
+            if (smallestValue == null || smallestValue.compareTo(value) > 0) {
                 smallestValue = value;
                 smallestElement = element;
             }

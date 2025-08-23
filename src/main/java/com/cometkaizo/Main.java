@@ -17,6 +17,8 @@ public class Main {
         System.exit(exitCode);
     }
 
+    // todo: depth buffer (to fix item rendering and y-ordered rendering): https://github.com/caiiiycuk/zcomposite/tree/master
+
     public static void log(String message) {
         System.out.println(message);
     }

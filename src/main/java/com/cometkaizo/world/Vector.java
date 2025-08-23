@@ -28,6 +28,20 @@ public interface Vector<T extends Number> extends DataSerializable {
         return multipliedBy(factor, factor);
     }
 
+    default boolean isShorterThan(double len) {
+        return lengthSqr() < len * len;
+    }
+    default double lengthSqr() {
+        return getX().doubleValue() * getX().doubleValue() + getY().doubleValue() * getY().doubleValue();
+    }
+    default double length() {
+        return Math.sqrt(lengthSqr());
+    }
+    default ImmutableDouble normalized() {
+        double length = length();
+        return immutable(getX().doubleValue() / length, getY().doubleValue() / length);
+    }
+
 
     static ImmutableInt immutable(int x, int y) {
         return new ImmutableInt(x, y);
@@ -140,6 +154,11 @@ public interface Vector<T extends Number> extends DataSerializable {
         Mutable<T> multiply(double xFactor, double yFactor);
         default Mutable<T> scale(double factor) {
             return multiply(factor, factor);
+        }
+
+        default void set(T x, T y) {
+            setX(x);
+            setY(y);
         }
     }
     interface Immutable<T extends Number> extends Vector<T> {
@@ -254,6 +273,14 @@ public interface Vector<T extends Number> extends DataSerializable {
         public ImmutableInt multipliedBy(double xFactor, double yFactor) {
             return new ImmutableInt((int) (x * xFactor), (int) (y * yFactor));
         }
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName() + "{" +
+                    "x=" + x +
+                    ", y=" + y +
+                    '}';
+        }
     }
     class MutableDouble implements Mutable<java.lang.Double>, Double {
         public double x;
@@ -336,6 +363,11 @@ public interface Vector<T extends Number> extends DataSerializable {
         }
 
         @Override
+        public MutableDouble scale(double factor) {
+            return multiply(factor, factor);
+        }
+
+        @Override
         public ImmutableDouble addedTo(java.lang.Double x, java.lang.Double y) {
             return new ImmutableDouble(this.x + x, this.y + y);
         }
@@ -348,6 +380,21 @@ public interface Vector<T extends Number> extends DataSerializable {
         @Override
         public ImmutableDouble multipliedBy(double xFactor, double yFactor) {
             return new ImmutableDouble(x * xFactor, y * yFactor);
+        }
+
+        public MutableDouble normalize() {
+            double length = length();
+            x /= length;
+            y /= length;
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName() + "{" +
+                    "x=" + x +
+                    ", y=" + y +
+                    '}';
         }
     }
     class ImmutableInt implements Immutable<Integer>, Int {
@@ -399,6 +446,14 @@ public interface Vector<T extends Number> extends DataSerializable {
         public ImmutableInt multipliedBy(double xFactor, double yFactor) {
             return new ImmutableInt((int) (x * xFactor), (int) (y * yFactor));
         }
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName() + "{" +
+                    "x=" + x +
+                    ", y=" + y +
+                    '}';
+        }
     }
     class ImmutableDouble implements Immutable<java.lang.Double>, Double {
         public final double x;
@@ -448,6 +503,14 @@ public interface Vector<T extends Number> extends DataSerializable {
         @Override
         public ImmutableDouble multipliedBy(double xFactor, double yFactor) {
             return new ImmutableDouble(x * xFactor, y * yFactor);
+        }
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName() + "{" +
+                    "x=" + x +
+                    ", y=" + y +
+                    '}';
         }
     }
 }

@@ -24,8 +24,17 @@ public class GameDriver extends SystemDriver {
             }
         }, 300, TimeUnit.MILLISECONDS);
 
-        double tickTime = 1000 / 20D;
-        addLoop(app::tick, (long) tickTime, TimeUnit.MILLISECONDS);
-        addLoop(app::render, (long) (tickTime / RENDERS_PER_TICK), TimeUnit.MILLISECONDS);
+//        double tickTime = 1000 / 20D;
+//        addLoop(app::tick, (long) tickTime, TimeUnit.MILLISECONDS);
+//        addLoop(app::render, (long) (tickTime / RENDERS_PER_TICK), TimeUnit.MILLISECONDS);
+        addLoop(new Runnable() {
+            private int renderCnt = 0;
+            @Override
+            public void run() {
+                renderCnt++;
+                if (renderCnt % RENDERS_PER_TICK == 0) app.tick();
+                app.render(renderCnt % RENDERS_PER_TICK / (double)RENDERS_PER_TICK);
+            }
+        }, 1000 / 60, TimeUnit.MILLISECONDS);
     }
 }

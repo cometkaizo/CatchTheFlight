@@ -9,17 +9,14 @@ import com.cometkaizo.screen.Renderable;
 import java.awt.*;
 
 public abstract class Entity implements Tickable, Renderable, Resettable {
-    public static final String TYPE_KEY = "type";
-    public static final String POSITION_KEY = "position";
     protected final Args originalArgs;
-    protected final Vector.ImmutableDouble originalPosition;
+    protected Vector.ImmutableDouble originalPosition;
     protected Vector.MutableDouble position;
     protected Vector.ImmutableDouble oldPosition;
     protected boolean removed;
     protected final Game game;
     protected Room room;
     protected String name;
-    private Image texture = getTexture();
 
     public Entity(Room room, Vector.MutableDouble position, Args args) {
         this.room = room;
@@ -33,24 +30,36 @@ public abstract class Entity implements Tickable, Renderable, Resettable {
     public void reset() {
         originalArgs.reset();
         this.position = Vector.mutableDouble(originalPosition);
-        this.oldPosition = Vector.immutableDouble(position);
+        updateOldPosition();
         this.name = originalArgs.next();
     }
 
     @Override
     public void tick() {
+        updateOldPosition();
+    }
+
+    protected void updateOldPosition() {
         this.oldPosition = Vector.immutableDouble(position);
     }
 
     @Override
     public void render(Canvas canvas) {
+        var texture = getTexture();
         if (texture == null) return;
-        canvas.renderImage(texture, canvas.lerp(oldPosition.x, getX()), canvas.lerp(oldPosition.y, getY()), -0.5, -1);
+        canvas.renderImage(texture, canvas.lerp(oldPosition.x, getX()), canvas.lerp(oldPosition.y, getY()), getTextureDeltaXFactor(), getTextureDeltaYFactor());
+    }
+    protected double getTextureDeltaXFactor() {
+        return -0.5;
+    }
+    protected double getTextureDeltaYFactor() {
+        return -1;
     }
     protected abstract String getTexturePath();
     private Image getTexture() {
-        if (getTexturePath() == null) return null;
-        return Assets.texture("entities/" + getTexturePath());
+        String texturePath = getTexturePath();
+        if (texturePath == null) return null;
+        return Assets.texture("entities/" + texturePath);
     }
 
     public boolean hasName() {
@@ -95,6 +104,14 @@ public abstract class Entity implements Tickable, Renderable, Resettable {
 
     public double getY() {
         return position.y;
+    }
+
+    public double getOldX() {
+        return oldPosition.x;
+    }
+
+    public double getOldY() {
+        return oldPosition.y;
     }
 
     public boolean isRemoved() {

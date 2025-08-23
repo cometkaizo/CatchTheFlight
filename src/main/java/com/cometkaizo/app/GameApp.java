@@ -111,7 +111,8 @@ public class GameApp extends App implements Tickable {
         if (game != null) game.tick();
     }
 
-    public void render() {
+    public void render(double partialTick) {
+        renderer.setPartialTick(partialTick);
         if (frame != null) frame.repaint();
     }
 

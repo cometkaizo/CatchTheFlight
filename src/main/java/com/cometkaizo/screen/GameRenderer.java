@@ -3,6 +3,7 @@ package com.cometkaizo.screen;
 import com.cometkaizo.app.GameDriver;
 import com.cometkaizo.game.Game;
 import com.cometkaizo.game.GameSettings;
+import com.cometkaizo.util.MathUtils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -12,8 +13,7 @@ public class GameRenderer extends JPanel {
     private final Canvas canvas;
     private final Game game;
     private final Dimension size;
-    private int rendersSinceLastTick = 0;
-    private long lastTick;
+    private double partialTick;
 
     public GameRenderer(Settings settings, Game game) {
         GameSettings gameSettings = game.getSettings();
@@ -39,22 +39,25 @@ public class GameRenderer extends JPanel {
         g.dispose();
     }
 
+    public void setPartialTick(double partialTick) {
+        this.partialTick = partialTick;
+    }
+
     protected void render(Graphics2D g) {
-        if (game.tick == lastTick) rendersSinceLastTick ++;
-        else rendersSinceLastTick = 0;
 
         Dimension size = getSize(this.size);
 
-        game.getCameraPosition().setX(game.getPlayer().getX());
-        game.getCameraPosition().setY(game.getPlayer().getY());
+        var p = game.getPlayer();
+        game.getCameraPosition().setX(MathUtils.lerp(partialTick, p.getOldX(), p.getX()) + 2);
+        game.getCameraPosition().setY(MathUtils.lerp(partialTick, p.getOldY(), p.getY()) + 0.5);
+//        game.getCameraPosition().setX(0D);
+//        game.getCameraPosition().setY(5D);
 
-        double partialTick = (double) rendersSinceLastTick / GameDriver.RENDERS_PER_TICK;
-        canvas.startRender(g, game.getCameraPosition().x, game.getCameraPosition().y, game.getCameraPosition().x, game.getCameraPosition().y, size.width, size.height, partialTick);
+        canvas.startRender(g, game.getCameraPosition().x, game.getCameraPosition().y, size.width, size.height, partialTick);
 
         game.render(canvas);
 
         canvas.endRender();
-        lastTick = game.tick;
     }
 
     public record Settings(

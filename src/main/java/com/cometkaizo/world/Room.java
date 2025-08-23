@@ -3,21 +3,22 @@ package com.cometkaizo.world;
 import com.cometkaizo.game.Game;
 import com.cometkaizo.io.DataSerializable;
 import com.cometkaizo.io.data.CompoundData;
+import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
 import com.cometkaizo.screen.Renderable;
 import com.cometkaizo.util.CollectionUtils;
 import com.cometkaizo.world.block.Block;
 import com.cometkaizo.world.block.BlockTypes;
-import com.cometkaizo.world.entity.BoundingBox;
-import com.cometkaizo.world.entity.Entity;
-import com.cometkaizo.world.entity.EntityTypes;
-import com.cometkaizo.world.entity.Player;
+import com.cometkaizo.world.entity.*;
 
 import java.awt.*;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -31,39 +32,31 @@ import static java.lang.Math.*;
 public class Room implements Tickable, Renderable, Resettable {
 
     public static final String SAVE_EXTENSION = ".csv";
-    public static final String NAMESPACE_KEY = "namespace";
-    public static final String NAME_KEY = "name";
-    public static final String MAP_KEY = "map";
-    private static final String ENTITIES_KEY = "entities";
-    private static final String RESPAWN_SET_KEY = "respawnSet";
-    public static final String CONNECTIONS_KEY = "connectionSet";
-    private static final String RENDERER_KEY = "renderer";
     public final Game game;
-    private World world;
-    private String namespace;
+    public String namespace;
+    public final World world;
     public String name;
-    private int width, height;
-    private ConnectionSet connectionSet = new ConnectionSet(null, null, null, null);
-    private Vector.ImmutableDouble respawnPos;
+    public ConnectionSet connectionSet = new ConnectionSet(null, null, null, null);
+    public List<Vector.ImmutableDouble> checkpoints;
     public Player player;
 
-    public Layer ground, walls, background;
+    public Layer ground, walls, background, foreground;
 
     public Room(Game game, World world, Path path) throws IOException {
-        this.name = path.getFileName().toString();
-        this.namespace = name;
         this.game = game;
         this.world = world;
+        this.name = path.getFileName().toString();
+        this.namespace = name;
 
-        this.ground = new Layer(new Scanner(Files.newInputStream(path.resolve("ground" + SAVE_EXTENSION))));
-        this.walls = new Layer(new Scanner(Files.newInputStream(path.resolve("walls" + SAVE_EXTENSION))));
-        this.background = new Layer(new Scanner(Files.newInputStream(path.resolve("background" + SAVE_EXTENSION))));
+        this.ground = new Layer("ground", Files.newInputStream(path.resolve("ground" + SAVE_EXTENSION)));
+        this.walls = new Layer("walls", Files.newInputStream(path.resolve("walls" + SAVE_EXTENSION)));
+        this.background = new Layer("background", Files.newInputStream(path.resolve("background" + SAVE_EXTENSION)));
+        this.foreground = new Layer("foreground", Files.newInputStream(path.resolve("foreground" + SAVE_EXTENSION)));
 
-        respawnPos = walls.respawnPos;
+        checkpoints = walls.checkpoints;
     }
 
     void onAddedTo(World world) {
-        this.world = world;
     }
 
     public Connection getConnection(Direction direction) {
@@ -73,18 +66,29 @@ public class Room implements Tickable, Renderable, Resettable {
 
     @Override
     public void tick() {
+        if (player != null) player.tick(); // this must be first in order for certain movement things to work (e.g., moving platform ground motion)
         ground.tick();
         walls.tick();
         background.tick();
-        if (player != null) player.tick();
+        foreground.tick();
     }
 
     @Override
     public void render(Canvas canvas) {
+        background.render(canvas);
         ground.render(canvas);
         walls.render(canvas);
-        background.render(canvas);
         if (player != null) player.render(canvas);
+        foreground.render(canvas);
+    }
+
+    public Object getBlockOrEntity(String name) {
+        Object result;
+        if ((result = ground.getBlockOrEntity(name)) != null) return result;
+        if ((result = walls.getBlockOrEntity(name)) != null) return result;
+        if ((result = background.getBlockOrEntity(name)) != null) return result;
+        if ((result = foreground.getBlockOrEntity(name)) != null) return result;
+        return null;
     }
 
     public String getNamespace() {
@@ -95,16 +99,8 @@ public class Room implements Tickable, Renderable, Resettable {
         return name;
     }
 
-    public Vector.ImmutableDouble getRespawnPos() {
-        return respawnPos;
-    }
-
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
+    public List<Vector.ImmutableDouble> getCheckpoints() {
+        return checkpoints;
     }
 
     @Override
@@ -113,6 +109,11 @@ public class Room implements Tickable, Renderable, Resettable {
         ground.reset();
         walls.reset();
         background.reset();
+        foreground.reset();
+    }
+
+    public List<Block> getGroundBeneath(CollidableEntity entity) {
+        return ground.getBlocksWithin(entity.getBoundingBox(), b -> b.isSolid(entity));
     }
 
 
@@ -296,42 +297,56 @@ public class Room implements Tickable, Renderable, Resettable {
     public class Layer implements Tickable, Renderable, Resettable {
         public static final String RESPAWN_ID = "R";
         public final Block[][] blocks;
-        public final SortedSet<Entity> entities = new TreeSet<>(Comparator.comparingDouble(Entity::getY));
+        public final List<Entity> entities = new ArrayList<>();
         public final Map<String, Object> named = new HashMap<>();
-        public final Vector.ImmutableDouble respawnPos;
-        public Layer(Scanner in) {
+        public final List<Vector.ImmutableDouble> checkpoints;
+        public final String name;
+        public final Image baseImage;
+
+        public Layer(String name, InputStream is) throws IOException {
+            this.name = name;
+            baseImage = Assets.texture("layers/" + name);
+
+            var in = new BufferedReader(new InputStreamReader(is));
+            var lines = in.lines().toList().reversed(); // reverse y
+
             var blocks = new ArrayList<List<Block>>();
-            Vector.ImmutableDouble respawnPos = null;
+            checkpoints = new ArrayList<>();
 
             {
-                int r = 0;
-                while (in.hasNextLine()) {
-                    var line = in.nextLine();
+                for (int r = 0; r < lines.size(); r ++) {
+                    var line = lines.get(r);
                     var row = new ArrayList<Block>();
 
-                    int c = 0;
-                    for (String s : line.split(",")) {
+                    int c = -1;
+                    String[] split = line.split(",", -1);
+                    for (String s : split) {
+                        c ++;
                         if (RESPAWN_ID.equals(s)) {
-                            respawnPos = Vector.immutable((double)c, r);
+                            checkpoints.add(Vector.immutable((double)c, r));
+                            row.add(BlockTypes.BLOCKS.get("").apply(Room.this, Vector.immutable(c, r), Args.EMPTY));
                             continue;
                         }
                         Args args = new Args(s);
-                        String id = args.next();
+                        String id = args.id();
                         if (BlockTypes.BLOCKS.containsKey(id)) {
                             var b = BlockTypes.BLOCKS.get(id).apply(Room.this, Vector.immutable(c, r), args);
                             row.add(b);
                             if (b.hasName()) named.put(b.getName(), b);
                         } else {
-                            var e = EntityTypes.ENTITIES.get(id).apply(Room.this, Vector.mutable((double)c, r), args);
-                            entities.add(e);
-                            if (e.hasName()) named.put(e.getName(), e);
-                        }
+                            row.add(BlockTypes.BLOCKS.get("").apply(Room.this, Vector.immutable(c, r), Args.EMPTY));
 
-                        c++;
+                            if (EntityTypes.ENTITIES.containsKey(id)) {
+                                var e = EntityTypes.ENTITIES.get(id).apply(Room.this, Vector.mutable((double) c, r), args);
+                                entities.add(e);
+                                if (e.hasName()) named.put(e.getName(), e);
+                            } else {
+                                throw new IllegalArgumentException("No such block or entity: " + id + " at (" + (lines.size() - r) + ":" + (c + 1) + ") (r:c, not ctrl + g)");
+                            }
+                        }
                     }
 
                     blocks.add(row);
-                    r++;
                 }
             }
 
@@ -341,95 +356,138 @@ public class Room implements Tickable, Renderable, Resettable {
                 this.blocks[r] = row.toArray(Block[]::new);
             }
 
-            this.respawnPos = respawnPos;
-
             in.close();
         }
 
-        public Vector.Double calcAllowedMovement(Vector.Double from, Vector.Double to, BoundingBox boundingBox) {
+        /*
+        allowed movement only works for blocks
+         */
+        public Vector.Double calcAllowedMovement(Vector.Double from, Vector.Double to, CollidableEntity entity, boolean canMoveOffLedges) {
             Vector.MutableDouble result = new Vector.MutableDouble(0, 0);
-            calcAllowedMovement(from, to, boundingBox, result);
+            calcAllowedMovement(from, to, entity, result, canMoveOffLedges);
             return result;
         }
-        public void calcAllowedMovement(Vector.Double from, Vector.Double to, BoundingBox boundingBox, Vector.MutableDouble result) {
+        public void calcAllowedMovement(Vector.Double from, Vector.Double to, CollidableEntity entity, Vector.MutableDouble result, boolean canMoveOffLedges) {
+            if (entity == null) return;
+            var boundingBox = entity.getBoundingBox();
             if (boundingBox == null) return;
-            result.y = calcAllowedYMovement(from.getY(), to.getY(), boundingBox);
-            result.x = calcAllowedXMovement(from.getX(), to.getX(), boundingBox);
+            boundingBox.position.y = result.y = calcAllowedYMovement(from.getY(), to.getY(), entity, canMoveOffLedges);
+            boundingBox.position.x = result.x = calcAllowedXMovement(from.getX(), to.getX(), entity, canMoveOffLedges);
         }
 
-        private double calcAllowedYMovement(double from, double to, BoundingBox boundingBox) {
+        private double calcAllowedYMovement(double from, double to, CollidableEntity entity, boolean canMoveOffLedges) {
+            var boundingBox = entity.getBoundingBox();
             int direction = (int) signum(to - from);
             boolean isMovingUp = direction == 1;
             double originalBoundingBoxY = boundingBox.getY();
-            double offset = from - originalBoundingBoxY;
+            double bbOffset = from - originalBoundingBoxY;
+            var prevGroundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
 
             for (int y = (int) from; y != (int) to + direction; y += direction) {
                 boundingBox.position.y = y != (int) to ?
                         (y - (int) from) + originalBoundingBoxY :
-                        to - offset;
+                        to - bbOffset;
 
-                List<Block> solidBlocks = getBlocksWithin(boundingBox, Block::isSolid);
-                if (!solidBlocks.isEmpty()) {
+                var solidBlocks = getBlocksWithin(boundingBox, b -> b.isSolid(entity));
+                var solidEntities = getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity));
+                if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
                     boundingBox.position.y = originalBoundingBoxY;
-                    return getTruncatedYMovement(boundingBox, solidBlocks, isMovingUp, offset);
+                    return getTruncatedYMovement(boundingBox, solidBlocks, solidEntities, isMovingUp, bbOffset);
                 }
+
+                var groundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
+                var groundEntities = ground.getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity));
+                if (!canMoveOffLedges && groundBlocks.isEmpty() && groundEntities.isEmpty()) {
+                    return getTruncatedYMovement(boundingBox, prevGroundBlocks, groundEntities, !isMovingUp, bbOffset) - direction * 0.01;
+                }
+                prevGroundBlocks = groundBlocks;
             }
 
             boundingBox.position.y = originalBoundingBoxY;
             return to;
         }
 
-        private static double getTruncatedYMovement(BoundingBox boundingBox, List<Block> solidBlocks, boolean isMovingUp, double offset) {
-            if (isMovingUp) {
-                Block bottomMostBlock = CollectionUtils.findMin(solidBlocks, Block::getY);
-                return bottomMostBlock.getY() - boundingBox.getHeight() - offset;
+        private static double getTruncatedYMovement(BoundingBox boundingBox, List<Block> solidBlocks, List<Entity> solidEntities, boolean truncateUnder, double bbOffset) {
+            if (solidBlocks.isEmpty() && solidEntities.isEmpty()) return boundingBox.position.y;
+            if (truncateUnder) {
+                double result = Double.MAX_VALUE;
+                var bottomMostBlock = CollectionUtils.findMin(solidBlocks, Block::getY);
+                if (bottomMostBlock != null) result = Math.min(result, bottomMostBlock.getY() - bbOffset);
+                var bottomMostEntity = (CollidableEntity) CollectionUtils.findMin(solidEntities, e -> ((CollidableEntity) e).getBoundingBox().getBottom());
+                if (bottomMostEntity != null) result = Math.min(result, bottomMostEntity.getBoundingBox().getBottom());
+                return result - boundingBox.getHeight();
             } else {
+                double result = -Double.MAX_VALUE;
                 Block topMostBlock = CollectionUtils.findMax(solidBlocks, Block::getY);
-                return topMostBlock.getY() + 1 + offset;
+                if (topMostBlock != null) result = Math.max(result, topMostBlock.getY() + 1 + bbOffset);
+                var topMostEntity = (CollidableEntity) CollectionUtils.findMin(solidEntities, e -> ((CollidableEntity) e).getBoundingBox().getTop());
+                if (topMostEntity != null) result = Math.max(result, topMostEntity.getBoundingBox().getTop());
+                return result;
             }
         }
 
-        private double calcAllowedXMovement(double from, double to, BoundingBox boundingBox) {
+        private double calcAllowedXMovement(double from, double to, CollidableEntity entity, boolean canMoveOffLedges) {
+            var boundingBox = entity.getBoundingBox();
             int direction = (int) signum(to - from);
             boolean isMovingRight = direction == 1;
             double originalBoundingBoxX = boundingBox.getX();
-            double offset = from - originalBoundingBoxX;
+            double bbOffset = from - originalBoundingBoxX;
+            var prevGroundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
 
             for (int x = (int) from; x != (int) to + direction; x += direction) {
                 boundingBox.position.x = x != (int) to ?
                         (x - (int) from) + originalBoundingBoxX :
-                        to - offset;
+                        to - bbOffset;
 
-                List<Block> solidBlocks = getBlocksWithin(boundingBox, Block::isSolid);
-                if (!solidBlocks.isEmpty()) {
+                var solidBlocks = getBlocksWithin(boundingBox, block -> block.isSolid(entity));
+                var solidEntities = getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity));
+                if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
                     boundingBox.position.x = originalBoundingBoxX;
-                    return getTruncatedXMovement(boundingBox, solidBlocks, isMovingRight, offset);
+                    return getTruncatedXMovement(boundingBox, solidBlocks, solidEntities, isMovingRight, bbOffset);
                 }
+
+                var groundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
+                var groundEntities = ground.getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity));
+                if (!canMoveOffLedges && groundBlocks.isEmpty() && groundEntities.isEmpty()) {
+                    return getTruncatedXMovement(boundingBox, prevGroundBlocks, groundEntities, !isMovingRight, bbOffset) - direction * 0.01;
+                }
+                prevGroundBlocks = groundBlocks;
             }
 
             boundingBox.position.x = originalBoundingBoxX;
             return to;
         }
 
-        private static double getTruncatedXMovement(BoundingBox boundingBox, List<Block> solidBlocks, boolean isMovingRight, double offset) {
-            if (isMovingRight) {
-                Block leftMostBlock = CollectionUtils.findMin(solidBlocks, Block::getX);
-                return leftMostBlock.getX() - boundingBox.getWidth() + offset;
+        private static double getTruncatedXMovement(BoundingBox boundingBox, List<Block> solidBlocks, List<Entity> solidEntities, boolean truncateToLeft, double bbOffset) {
+            if (solidBlocks.isEmpty() && solidEntities.isEmpty()) return boundingBox.position.x;
+            if (truncateToLeft) {
+                double result = Double.MAX_VALUE;
+                var leftMostBlock = CollectionUtils.findMin(solidBlocks, Block::getX);
+                if (leftMostBlock != null) result = Math.min(result, leftMostBlock.getX() - boundingBox.getWidth() + bbOffset);
+                var leftMostEntity = (CollidableEntity) CollectionUtils.findMin(solidEntities, e -> ((CollidableEntity) e).getBoundingBox().getLeft());
+                if (leftMostEntity != null) result = Math.min(result, leftMostEntity.getBoundingBox().getLeft() - bbOffset);
+                return result;
             } else {
+                double result = -Double.MAX_VALUE;
                 Block rightMostBlock = CollectionUtils.findMax(solidBlocks, Block::getX);
-                return rightMostBlock.getX() + 1 + offset;
+                if (rightMostBlock != null) result = Math.max(result, rightMostBlock.getX() + 1 + bbOffset);
+                var rightMostEntity = (CollidableEntity) CollectionUtils.findMin(solidEntities, e -> ((CollidableEntity) e).getBoundingBox().getRight());
+                if (rightMostEntity != null) result = Math.max(result, rightMostEntity.getBoundingBox().getRight() + bbOffset);
+                return result;
             }
-        }
-
-        public boolean hasSolidBlocksWithin(BoundingBox boundingBox) {
-            return !getBlocksWithin(boundingBox, Block::isSolid).isEmpty();
+//                Block leftMostBlock = CollectionUtils.findMin(solidBlocks, Block::getX);
+//                return leftMostBlock.getX() - boundingBox.getWidth() + bbOffset;
+//            } else {
+//                Block rightMostBlock = CollectionUtils.findMax(solidBlocks, Block::getX);
+//                return rightMostBlock.getX() + 1 + bbOffset;
+//            }
         }
 
         public List<Block> getBlocksWithin(BoundingBox boundingBox) {
             return getBlocksWithin(boundingBox, b -> true);
         }
 
-        public List<Block> getBlocksWithin(BoundingBox boundingBox, Predicate<Block> condition) {
+        public List<Block> getBlocksWithin(BoundingBox boundingBox, Predicate<? super Block> condition) {
             int fromX = (int) floor(boundingBox.getLeft());
             int fromY = (int) floor(boundingBox.getBottom());
             int toX = (int) floor(boundingBox.getRight() - 10E-7);
@@ -448,6 +506,22 @@ public class Room implements Tickable, Renderable, Resettable {
             return result;
         }
 
+        public List<Entity> getEntitiesWithin(BoundingBox boundingBox) {
+            return getEntitiesWithin(boundingBox, b -> true);
+        }
+
+        public List<Entity> getEntitiesWithin(BoundingBox boundingBox, Predicate<? super Entity> condition) {
+            var result = new ArrayList<Entity>();
+            for (var e : entities) {
+                if (!condition.test(e)) continue;
+                if (boundingBox.contains(e.getPosition()) ||
+                        e instanceof CollidableEntity c && c.getBoundingBox().intersects(boundingBox)) {
+                    result.add(e);
+                }
+            }
+            return result;
+        }
+
         public Optional<Block> getBlock(Vector.Int position) {
             return getBlock(position.getX(), position.getY());
         }
@@ -459,16 +533,27 @@ public class Room implements Tickable, Renderable, Resettable {
             return Optional.of(row[x]);
         }
 
+        public boolean containsSolid(BoundingBox boundingBox, Entity entity) {
+            return !getBlocksWithin(boundingBox, block -> block.isSolid(entity)).isEmpty() ||
+                    entities.stream().anyMatch(e -> e instanceof CollidableEntity c && c.isSolid(entity) && c.getBoundingBox().intersects(boundingBox));
+        }
+
+        public Object getBlockOrEntity(String name) {
+            return name == null ? null : named.get(name);
+        }
+
         @Override
         public void tick() {
-            for (var row : blocks) for (var b : row) b.tick();
             entities.forEach(Tickable::tick);
-            if (player != null) player.tick();
+            for (var row : blocks) for (var b : row) b.tick();
         }
 
         @Override
         public void render(Canvas canvas) {
-            for (var row : blocks) for (var b : row) b.render(canvas);
+            canvas.renderImage(baseImage, -14D, -10D, 0, -1);
+            for (int r = blocks.length - 1; r >= 0; r--) {
+                for (var b : blocks[r]) b.render(canvas);
+            }
             entities.forEach((entity) -> entity.render(canvas));
         }
 

@@ -50,4 +50,19 @@ public class BoundingBox {
                 getBottom() < other.getTop() &&
                 other.getBottom() < getTop();
     }
+
+    public boolean contains(Vector.Double position) {
+        return position.getX() > getLeft() && position.getX() < getRight() &&
+                position.getY() > getBottom() && position.getY() < getTop();
+    }
+
+    public BoundingBox copy() {
+        return new BoundingBox(Vector.mutableDouble(position), size);
+    }
+
+    public BoundingBox expanded(double tolerance) {
+        double halfTolerance = tolerance / 2;
+        return new BoundingBox(Vector.mutable(getLeft() - halfTolerance, getBottom() - halfTolerance),
+                Vector.immutable(getWidth() + tolerance, getHeight() + tolerance));
+    }
 }

@@ -7,7 +7,6 @@ import java.awt.*;
 public class Canvas {
     private int screenWidth, screenHeight;
     private double cameraX, cameraY;
-    private double oldCameraX, oldCameraY;
     private double coordToScreen;
     private double renderScale;
     private Graphics2D g;
@@ -63,11 +62,11 @@ public class Canvas {
     }
 
     public int toScreenX(double coordX) {
-        return toScreenX(coordX, getCameraX());
+        return toScreenX(coordX, cameraX);
     }
 
     public int toScreenY(double coordY) {
-        return toScreenY(coordY, getCameraY());
+        return toScreenY(coordY, cameraY);
     }
 
     public int toScreenX(double coordX, double originX) {
@@ -94,22 +93,14 @@ public class Canvas {
         return screenHeight;
     }
 
-    void startRender(Graphics2D g, double oldCameraX, double oldCameraY, double cameraX, double cameraY, int width, int height, double partialTick) {
+    void startRender(Graphics2D g, double cameraX, double cameraY, int width, int height, double partialTick) {
         this.g = g;
-        this.oldCameraX = oldCameraX;
-        this.oldCameraY = oldCameraY;
         this.cameraX = cameraX;
         this.cameraY = cameraY;
         this.screenWidth = width;
         this.screenHeight = height;
         this.partialTick = partialTick;
-    }
-
-    public double getCameraX() {
-        return lerp(oldCameraX, cameraX);
-    }
-    public double getCameraY() {
-        return lerp(oldCameraY, cameraY);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     }
 
     void endRender() {
