@@ -61,8 +61,12 @@ public class BoundingBox {
     }
 
     public BoundingBox expanded(double tolerance) {
-        double halfTolerance = tolerance / 2;
-        return new BoundingBox(Vector.mutable(getLeft() - halfTolerance, getBottom() - halfTolerance),
-                Vector.immutable(getWidth() + tolerance, getHeight() + tolerance));
+        return new BoundingBox(Vector.mutable(getLeft() - tolerance, getBottom() - tolerance),
+                Vector.immutable(getWidth() + tolerance * 2, getHeight() + tolerance * 2));
+    }
+
+    @Override
+    public String toString() {
+        return "(" + getLeft() + ", " + getBottom() + ") -> (" + getRight() + ", " + getTop() + ")";
     }
 }

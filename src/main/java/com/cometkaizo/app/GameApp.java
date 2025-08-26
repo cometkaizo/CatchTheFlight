@@ -3,6 +3,7 @@ package com.cometkaizo.app;
 import com.cometkaizo.Main;
 import com.cometkaizo.app.command.ExitCommand;
 import com.cometkaizo.app.command.GameCommand;
+import com.cometkaizo.app.command.TPCommand;
 import com.cometkaizo.command.CommandGroup;
 import com.cometkaizo.command.CommandSyntaxException;
 import com.cometkaizo.game.Game;
@@ -46,7 +47,8 @@ public class GameApp extends App implements Tickable {
         this.settings = (GameAppSettings) super.getSettings();
         this.commandGroup = new CommandGroup(
                 () -> new ExitCommand(this),
-                () -> new GameCommand(this)
+                () -> new GameCommand(this),
+                () -> new TPCommand(this)
         );
         this.game = new Game(this, new GameSettings());
     }
@@ -143,13 +145,11 @@ public class GameApp extends App implements Tickable {
         @Override
         public void windowClosing(WindowEvent windowEvent) {
             if (JOptionPane.showConfirmDialog(frame,
-                    "Save the app before closing?", "Save?",
+                    "Are you sure you want to exit?", "Consider very carefully...",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION) {
-                boolean saveSuccess = saveGame();
-                if (!saveSuccess) return;
+                Main.stop(0);
             }
-            Main.stop(0);
         }
     }
 

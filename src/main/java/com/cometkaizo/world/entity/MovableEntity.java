@@ -7,8 +7,8 @@ import com.cometkaizo.world.Vector;
 public abstract class MovableEntity extends Entity {
     protected Vector.MutableDouble motion = Vector.mutable(0D, 0D), groundMotion = Vector.mutable(0D, 0D);
 
-    public MovableEntity(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public MovableEntity(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
     }
 
     @Override
@@ -20,7 +20,12 @@ public abstract class MovableEntity extends Entity {
     }
 
     protected void move(Vector.Double delta) {
-        room.walls.calcAllowedMovement(position, position.addedTo(delta), null, position, canMoveOffLedges());
+        if (canCollideWhenMoving()) layer.calcAllowedMovement(position, position.addedTo(delta), null, position, canMoveOffLedges());
+        else position.add(delta);
+    }
+
+    public boolean canCollideWhenMoving() {
+        return true;
     }
 
     protected boolean canMoveOffLedges() {

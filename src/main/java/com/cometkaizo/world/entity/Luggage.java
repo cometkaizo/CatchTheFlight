@@ -17,16 +17,21 @@ public class Luggage extends ThrowableEntity {
     protected int deathTime = -1;
     protected double airFriction = 0.5;
 
-    public Luggage(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public Luggage(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
         this.boundingBox = new BoundingBox(Vector.mutable(0D, 0D), Vector.immutable(1D, 1D));
         game.getEventBus().register(KeyPressedEvent.class, this::onKeyPressed);
     }
 
     private void onKeyPressed(KeyPressedEvent event) {
-        if (event.input() == InputBindings.INTERACT.get() && isTouching(room.player, 0.1)) {
+        if (event.input() == InputBindings.INTERACT.get() && canBeInteracted()) {
             room.player.setHeld(this);
+            room.player.onInteract();
         }
+    }
+
+    private boolean canBeInteracted() {
+        return isTouching(room.player, 0.1) && room.player.canInteract();
     }
 
     public void kill() {

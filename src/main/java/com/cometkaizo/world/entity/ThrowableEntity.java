@@ -5,8 +5,8 @@ import com.cometkaizo.world.Room;
 import com.cometkaizo.world.Vector;
 
 public abstract class ThrowableEntity extends CollidableEntity {
-    public ThrowableEntity(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public ThrowableEntity(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
     }
 
     @Override

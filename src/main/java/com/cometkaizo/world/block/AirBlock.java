@@ -7,8 +7,8 @@ import com.cometkaizo.world.entity.Entity;
 
 public class AirBlock extends Block {
 
-    public AirBlock(Room room, Vector.ImmutableInt position, Args args) {
-        super(room, position, args);
+    public AirBlock(Room.Layer layer, Vector.ImmutableInt position, Args args) {
+        super(layer, position, args);
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
 import com.cometkaizo.screen.Renderable;
 import com.cometkaizo.util.CollectionUtils;
+import com.cometkaizo.util.MathUtils;
 import com.cometkaizo.world.block.Block;
 import com.cometkaizo.world.block.BlockTypes;
 import com.cometkaizo.world.entity.*;
@@ -38,6 +39,7 @@ public class Room implements Tickable, Renderable, Resettable {
     public String name;
     public ConnectionSet connectionSet = new ConnectionSet(null, null, null, null);
     public List<Vector.ImmutableDouble> checkpoints;
+    public List<CameraLock> cameraLocks;
     public Player player;
 
     public Layer ground, walls, background, foreground;
@@ -54,6 +56,7 @@ public class Room implements Tickable, Renderable, Resettable {
         this.foreground = new Layer("foreground", Files.newInputStream(path.resolve("foreground" + SAVE_EXTENSION)));
 
         checkpoints = walls.checkpoints;
+        cameraLocks = background.cameraLocks;
     }
 
     void onAddedTo(World world) {
@@ -61,6 +64,11 @@ public class Room implements Tickable, Renderable, Resettable {
 
     public Connection getConnection(Direction direction) {
         return connectionSet.get(direction);
+    }
+
+    public void lockCamera(Vector.MutableDouble cameraPos) {
+        var closestLockPos = CollectionUtils.findMin(cameraLocks, l -> l.restrict(cameraPos).distanceSqr(player.getPosition()));
+        cameraPos.set(closestLockPos.restrict(cameraPos));
     }
 
 
@@ -295,23 +303,26 @@ public class Room implements Tickable, Renderable, Resettable {
     }
 
     public class Layer implements Tickable, Renderable, Resettable {
-        public static final String RESPAWN_ID = "R";
+        public static final String RESPAWN_ID = "R", CAMERA_LOCK_ID = "CL";
+        public final Room room = Room.this;
         public final Block[][] blocks;
         public final List<Entity> entities = new ArrayList<>();
         public final Map<String, Object> named = new HashMap<>();
         public final List<Vector.ImmutableDouble> checkpoints;
+        public final List<CameraLock> cameraLocks;
         public final String name;
         public final Image baseImage;
 
         public Layer(String name, InputStream is) throws IOException {
             this.name = name;
-            baseImage = Assets.texture("layers/" + name);
+            baseImage = Assets.texture("layer/" + name);
 
             var in = new BufferedReader(new InputStreamReader(is));
             var lines = in.lines().toList().reversed(); // reverse y
 
             var blocks = new ArrayList<List<Block>>();
             checkpoints = new ArrayList<>();
+            cameraLocks = new ArrayList<>();
 
             {
                 for (int r = 0; r < lines.size(); r ++) {
@@ -322,22 +333,30 @@ public class Room implements Tickable, Renderable, Resettable {
                     String[] split = line.split(",", -1);
                     for (String s : split) {
                         c ++;
-                        if (RESPAWN_ID.equals(s)) {
-                            checkpoints.add(Vector.immutable((double)c, r));
-                            row.add(BlockTypes.BLOCKS.get("").apply(Room.this, Vector.immutable(c, r), Args.EMPTY));
-                            continue;
-                        }
                         Args args = new Args(s);
                         String id = args.id();
+
+                        // special values
+                        if (RESPAWN_ID.equals(id)) {
+                            checkpoints.add(Vector.immutable((double)c, r));
+                            row.add(BlockTypes.BLOCKS.get("").apply(this, Vector.immutable(c, r), Args.EMPTY));
+                            continue;
+                        } else if (CAMERA_LOCK_ID.equals(id)) {
+                            cameraLocks.add(CameraLock.of(args, r, c));
+                            row.add(BlockTypes.BLOCKS.get("").apply(this, Vector.immutable(c, r), Args.EMPTY));
+                            continue;
+                        }
+
+                        // blocks and entities
                         if (BlockTypes.BLOCKS.containsKey(id)) {
-                            var b = BlockTypes.BLOCKS.get(id).apply(Room.this, Vector.immutable(c, r), args);
+                            var b = BlockTypes.BLOCKS.get(id).apply(this, Vector.immutable(c, r), args);
                             row.add(b);
                             if (b.hasName()) named.put(b.getName(), b);
                         } else {
-                            row.add(BlockTypes.BLOCKS.get("").apply(Room.this, Vector.immutable(c, r), Args.EMPTY));
+                            row.add(BlockTypes.BLOCKS.get("").apply(this, Vector.immutable(c, r), Args.EMPTY));
 
                             if (EntityTypes.ENTITIES.containsKey(id)) {
-                                var e = EntityTypes.ENTITIES.get(id).apply(Room.this, Vector.mutable((double) c, r), args);
+                                var e = EntityTypes.ENTITIES.get(id).apply(this, Vector.mutable((double) c, r), args);
                                 entities.add(e);
                                 if (e.hasName()) named.put(e.getName(), e);
                             } else {
@@ -412,16 +431,16 @@ public class Room implements Tickable, Renderable, Resettable {
             if (truncateUnder) {
                 double result = Double.MAX_VALUE;
                 var bottomMostBlock = CollectionUtils.findMin(solidBlocks, Block::getY);
-                if (bottomMostBlock != null) result = Math.min(result, bottomMostBlock.getY() - bbOffset);
+                if (bottomMostBlock != null) result = min(result, bottomMostBlock.getY() - bbOffset);
                 var bottomMostEntity = (CollidableEntity) CollectionUtils.findMin(solidEntities, e -> ((CollidableEntity) e).getBoundingBox().getBottom());
-                if (bottomMostEntity != null) result = Math.min(result, bottomMostEntity.getBoundingBox().getBottom());
+                if (bottomMostEntity != null) result = min(result, bottomMostEntity.getBoundingBox().getBottom());
                 return result - boundingBox.getHeight();
             } else {
                 double result = -Double.MAX_VALUE;
                 Block topMostBlock = CollectionUtils.findMax(solidBlocks, Block::getY);
-                if (topMostBlock != null) result = Math.max(result, topMostBlock.getY() + 1 + bbOffset);
+                if (topMostBlock != null) result = max(result, topMostBlock.getY() + 1 + bbOffset);
                 var topMostEntity = (CollidableEntity) CollectionUtils.findMin(solidEntities, e -> ((CollidableEntity) e).getBoundingBox().getTop());
-                if (topMostEntity != null) result = Math.max(result, topMostEntity.getBoundingBox().getTop());
+                if (topMostEntity != null) result = max(result, topMostEntity.getBoundingBox().getTop());
                 return result;
             }
         }
@@ -463,16 +482,16 @@ public class Room implements Tickable, Renderable, Resettable {
             if (truncateToLeft) {
                 double result = Double.MAX_VALUE;
                 var leftMostBlock = CollectionUtils.findMin(solidBlocks, Block::getX);
-                if (leftMostBlock != null) result = Math.min(result, leftMostBlock.getX() - boundingBox.getWidth() + bbOffset);
+                if (leftMostBlock != null) result = min(result, leftMostBlock.getX() - boundingBox.getWidth() + bbOffset);
                 var leftMostEntity = (CollidableEntity) CollectionUtils.findMin(solidEntities, e -> ((CollidableEntity) e).getBoundingBox().getLeft());
-                if (leftMostEntity != null) result = Math.min(result, leftMostEntity.getBoundingBox().getLeft() - bbOffset);
+                if (leftMostEntity != null) result = min(result, leftMostEntity.getBoundingBox().getLeft() - bbOffset);
                 return result;
             } else {
                 double result = -Double.MAX_VALUE;
                 Block rightMostBlock = CollectionUtils.findMax(solidBlocks, Block::getX);
-                if (rightMostBlock != null) result = Math.max(result, rightMostBlock.getX() + 1 + bbOffset);
+                if (rightMostBlock != null) result = max(result, rightMostBlock.getX() + 1 + bbOffset);
                 var rightMostEntity = (CollidableEntity) CollectionUtils.findMin(solidEntities, e -> ((CollidableEntity) e).getBoundingBox().getRight());
-                if (rightMostEntity != null) result = Math.max(result, rightMostEntity.getBoundingBox().getRight() + bbOffset);
+                if (rightMostEntity != null) result = max(result, rightMostEntity.getBoundingBox().getRight() + bbOffset);
                 return result;
             }
 //                Block leftMostBlock = CollectionUtils.findMin(solidBlocks, Block::getX);
@@ -661,6 +680,54 @@ public class Room implements Tickable, Renderable, Resettable {
                     Atmosphere atmosphere = Atmosphere.of(data.getCompound(ATMOSPHERE_KEY));
                     return new Options(atmosphere);
                 }
+            }
+        }
+    }
+
+    public interface CameraLock {
+        Vector.ImmutableDouble restrict(Vector.Double pos);
+
+        static CameraLock of(Args args, int r, int c) {
+            return switch (args.next()) {
+                case "p" -> new Point(c, r);
+                case "h" -> new Horizontal(r, args.nextSheetCol(0), args.nextSheetCol(0));
+                case "v" -> new Vertical(c, args.nextInt(0), args.nextInt(0));
+                default -> throw new IllegalStateException("Unexpected value: " + args.next());
+            };
+        }
+
+        class Point implements CameraLock {
+            protected final Vector.ImmutableDouble point;
+            public Point(int x, int y) {
+                this.point = Vector.immutable((double)x, y);
+            }
+            @Override
+            public Vector.ImmutableDouble restrict(Vector.Double pos) {
+                return point;
+            }
+        }
+        class Horizontal implements CameraLock {
+            protected final double y, left, right;
+            public Horizontal(int y, int left, int right) {
+                this.y = y + 0.5;
+                this.left = left;
+                this.right = right;
+            }
+            @Override
+            public Vector.ImmutableDouble restrict(Vector.Double pos) {
+                return Vector.immutable(MathUtils.clamp(pos.getX(), left, right), y);
+            }
+        }
+        class Vertical implements CameraLock {
+            protected final int x, bottom, top;
+            public Vertical(int x, int bottom, int top) {
+                this.x = x;
+                this.bottom = bottom;
+                this.top = top;
+            }
+            @Override
+            public Vector.ImmutableDouble restrict(Vector.Double pos) {
+                return Vector.immutable(x, MathUtils.clamp(pos.getY(), bottom, top));
             }
         }
     }

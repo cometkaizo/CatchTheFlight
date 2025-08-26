@@ -2,6 +2,7 @@ package com.cometkaizo.world.entity;
 
 import com.cometkaizo.game.event.KeyPressedEvent;
 import com.cometkaizo.input.InputBindings;
+import com.cometkaizo.screen.Assets;
 import com.cometkaizo.world.Activateable;
 import com.cometkaizo.world.Args;
 import com.cometkaizo.world.Room;
@@ -13,29 +14,39 @@ public class Button extends CollidableEntity {
     protected boolean pressed;
     protected String[] targetNames;
 
-    public Button(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public Button(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
         this.boundingBox = new BoundingBox(Vector.mutable(0D, 0D), Vector.immutable(1D, 1D));
         game.getEventBus().register(KeyPressedEvent.class, this::onKeyPressed);
     }
 
     private void onKeyPressed(KeyPressedEvent event) {
-        if (event.input() == InputBindings.INTERACT.get() && isTouching(room.player)) {
+        if (event.input() == InputBindings.INTERACT.get() && canBeInteracted()) {
             toggle();
+            room.player.onInteract();
         }
+    }
+
+    private boolean canBeInteracted() {
+        return isTouching(room.player) && room.player.canInteract();
     }
 
     public void toggle() {
-        if (!pressed) {
-            pressed = true;
-            activate();
-        } else pressed = false;
+        if (!pressed) activate();
+        else deactivate();
     }
 
     private void activate() {
+        pressed = true;
         for (String targetName : targetNames) {
             if (room.getBlockOrEntity(targetName) instanceof Activateable target) target.activate();
         }
+        Assets.sound("click2").play();
+    }
+
+    private void deactivate() {
+        pressed = false;
+        Assets.sound("click").play();
     }
 
     @Override
@@ -57,6 +68,8 @@ public class Button extends CollidableEntity {
     }
     @Override
     protected String getTexturePath() {
-        return pressed ? "button_pressed" : "button";
+        String texture = pressed ? "button/pressed" : "button/normal";
+        if (canBeInteracted()) texture += "_hovered";
+        return texture;
     }
 }

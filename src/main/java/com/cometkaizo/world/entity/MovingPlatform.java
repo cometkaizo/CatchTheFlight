@@ -14,8 +14,8 @@ public class MovingPlatform extends CollidableEntity {
     protected double speed = 0.1;
     protected int fallTime = -1;
 
-    public MovingPlatform(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public MovingPlatform(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
         this.boundingBox = new BoundingBox(Vector.mutable(0D, 0D), Vector.immutable(1D, 1D));
     }
 

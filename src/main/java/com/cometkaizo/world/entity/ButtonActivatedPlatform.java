@@ -1,5 +1,6 @@
 package com.cometkaizo.world.entity;
 
+import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
 import com.cometkaizo.util.MathUtils;
 import com.cometkaizo.world.*;
@@ -20,8 +21,8 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
     protected boolean moving;
     protected String[] attachedNames;
 
-    public ButtonActivatedPlatform(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public ButtonActivatedPlatform(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
         this.boundingBox = new BoundingBox(Vector.mutable(0D, 0D), Vector.immutable(1D, 1D));
     }
 
@@ -35,6 +36,7 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
 
     private void tickMotion() {
         if (!moving || fallTime != -1) return;
+        if (moveTime == 0) Assets.sound("fire").play();
         moveTime ++;
         double speed = Math.min(this.speed, moveAmtLeft);
 
@@ -68,7 +70,11 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
                 if (room.getBlockOrEntity(attachedName) instanceof Resettable r) r.reset();
             }
         }
-        else if (fallTime != -1) fallTime ++;
+        else if (fallTime != -1) {
+            if (fallTime == 0) Assets.sound("crunch").play();
+            if (fallTime == -resetDuration) Assets.sound("float_in").play();
+            fallTime++;
+        }
         if (fallTime == -2) moving = false;
     }
 
@@ -101,6 +107,11 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
     @Override
     protected String getTexturePath() {
         return "button_activated_platform";
+    }
+
+    @Override
+    public boolean canCollideWhenMoving() {
+        return false;
     }
 
     @Override

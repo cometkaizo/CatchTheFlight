@@ -37,6 +37,12 @@ public interface Vector<T extends Number> extends DataSerializable {
     default double length() {
         return Math.sqrt(lengthSqr());
     }
+    default double distanceSqr(Vector<?> other) {
+        return subtractedBy(other).lengthSqr();
+    }
+    default double distance(Vector<?> other) {
+        return subtractedBy(other).length();
+    }
     default ImmutableDouble normalized() {
         double length = length();
         return immutable(getX().doubleValue() / length, getY().doubleValue() / length);
@@ -159,6 +165,10 @@ public interface Vector<T extends Number> extends DataSerializable {
         default void set(T x, T y) {
             setX(x);
             setY(y);
+        }
+        default void set(Vector<T> other) {
+            setX(other.getX());
+            setY(other.getY());
         }
     }
     interface Immutable<T extends Number> extends Vector<T> {

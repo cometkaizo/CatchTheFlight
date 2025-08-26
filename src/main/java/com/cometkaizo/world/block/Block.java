@@ -14,12 +14,14 @@ public abstract class Block implements Tickable, Renderable, DataSerializable, R
     public static final String TYPE_KEY = "type";
     public static final String POSITION_KEY = "position";
     public final Room room;
+    public final Room.Layer layer;
     protected final Args originalArgs;
     public String name;
     public final Vector.ImmutableInt position;
 
-    public Block(Room room, Vector.ImmutableInt position, Args args) {
-        this.room = room;
+    public Block(Room.Layer layer, Vector.ImmutableInt position, Args args) {
+        this.room = layer.room;
+        this.layer = layer;
         this.position = position;
         this.originalArgs = args;
         reset();
@@ -49,7 +51,7 @@ public abstract class Block implements Tickable, Renderable, DataSerializable, R
     private Image getTexture() {
         var texturePath = getTexturePath();
         if (texturePath == null) return null;
-        return Assets.texture("blocks/" + texturePath);
+        return Assets.texture("block/" + texturePath);
     }
 
     public String getNamespace() {
@@ -76,7 +78,7 @@ public abstract class Block implements Tickable, Renderable, DataSerializable, R
     }
 
     public interface Reader {
-        Block apply(Room room, Vector.ImmutableInt pos, Args args);
+        Block apply(Room.Layer layer, Vector.ImmutableInt pos, Args args);
     }
 
     @Override
