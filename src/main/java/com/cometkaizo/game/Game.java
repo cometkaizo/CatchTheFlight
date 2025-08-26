@@ -2,7 +2,6 @@ package com.cometkaizo.game;
 
 import com.cometkaizo.Main;
 import com.cometkaizo.app.GameApp;
-import com.cometkaizo.world.Tickable;
 import com.cometkaizo.event.EventBus;
 import com.cometkaizo.event.SimpleEventBus;
 import com.cometkaizo.game.event.*;
@@ -11,6 +10,7 @@ import com.cometkaizo.input.KeyBinding;
 import com.cometkaizo.input.MouseButtonBinding;
 import com.cometkaizo.io.data.CompoundData;
 import com.cometkaizo.screen.Canvas;
+import com.cometkaizo.screen.Dialogue;
 import com.cometkaizo.screen.Renderable;
 import com.cometkaizo.world.*;
 import com.cometkaizo.world.entity.Player;
@@ -29,10 +29,11 @@ public class Game implements Tickable, Renderable, InputListener {
     private final EventBus eventBus;
     private final Vector.MutableDouble cameraPosition;
     private World world;
-    private Room room;
+    public Room room;
     private Player player;
     private Direction lastEntrySide = Direction.LEFT;
     public long tick = 0;
+    private Dialogue dialogue;
 
     public Game(GameApp app, GameSettings settings) {
         this.app = app;
@@ -46,7 +47,7 @@ public class Game implements Tickable, Renderable, InputListener {
             world = new World(this, Path.of("src\\main\\resources\\world"));
             room = world.getRoom("lobby");
             if (room.getCheckpoints().isEmpty()) throw new IllegalStateException("No respawn position");
-            player = room.player = new Player(room, Vector.mutableDouble(room.getCheckpoints().getFirst()), new Args(""));
+            player = room.player = new Player(room.walls, Vector.mutableDouble(room.getCheckpoints().getFirst()), new Args(""));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -67,6 +68,7 @@ public class Game implements Tickable, Renderable, InputListener {
     public void tick() {
         if (world != null) world.tick();
         if (room != null) room.tick();
+        if (getDialogue() != null) getDialogue().tick();
         tick ++;
     }
 
@@ -75,6 +77,7 @@ public class Game implements Tickable, Renderable, InputListener {
     public void render(Canvas canvas) {
         if (world != null) world.render(canvas);
         if (room != null) room.render(canvas);
+        if (getDialogue() != null) getDialogue().render(canvas);
     }
 
     @Override
@@ -206,5 +209,24 @@ public class Game implements Tickable, Renderable, InputListener {
 
     public Player getPlayer() {
         return player;
+    }
+
+    public void advanceDialogue() {
+        if (!hasDialogue()) return;
+        if (dialogue.isFinished()) dialogue = dialogue.next;
+        else dialogue.finish();
+    }
+
+    public Dialogue getDialogue() {
+        return dialogue;
+    }
+
+    public void setDialogue(Dialogue dialogue) {
+        this.dialogue = dialogue;
+        player.onInteractDialogue();
+    }
+
+    public boolean hasDialogue() {
+        return dialogue != null;
     }
 }

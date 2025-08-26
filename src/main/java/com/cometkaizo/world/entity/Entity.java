@@ -15,11 +15,13 @@ public abstract class Entity implements Tickable, Renderable, Resettable {
     protected Vector.ImmutableDouble oldPosition;
     protected boolean removed;
     protected final Game game;
+    protected Room.Layer layer;
     protected Room room;
     protected String name;
 
-    public Entity(Room room, Vector.MutableDouble position, Args args) {
-        this.room = room;
+    public Entity(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        this.room = layer.room;
+        this.layer = layer;
         this.game = room.game;
         this.originalArgs = args;
         this.originalPosition = Vector.immutableDouble(position);
@@ -59,7 +61,7 @@ public abstract class Entity implements Tickable, Renderable, Resettable {
     private Image getTexture() {
         String texturePath = getTexturePath();
         if (texturePath == null) return null;
-        return Assets.texture("entities/" + texturePath);
+        return Assets.texture("entity/" + texturePath);
     }
 
     public boolean hasName() {
@@ -119,6 +121,6 @@ public abstract class Entity implements Tickable, Renderable, Resettable {
     }
 
     public interface Reader {
-        Entity apply(Room room, Vector.MutableDouble pos, Args args);
+        Entity apply(Room.Layer layer, Vector.MutableDouble pos, Args args);
     }
 }

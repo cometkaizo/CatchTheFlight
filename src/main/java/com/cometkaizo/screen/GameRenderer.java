@@ -50,8 +50,7 @@ public class GameRenderer extends JPanel {
         var p = game.getPlayer();
         game.getCameraPosition().setX(MathUtils.lerp(partialTick, p.getOldX(), p.getX()) + 2);
         game.getCameraPosition().setY(MathUtils.lerp(partialTick, p.getOldY(), p.getY()) + 0.5);
-//        game.getCameraPosition().setX(0D);
-//        game.getCameraPosition().setY(5D);
+        game.room.lockCamera(game.getCameraPosition());
 
         canvas.startRender(g, game.getCameraPosition().x, game.getCameraPosition().y, size.width, size.height, partialTick);
 

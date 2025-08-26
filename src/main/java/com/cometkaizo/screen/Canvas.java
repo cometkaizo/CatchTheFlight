@@ -114,4 +114,8 @@ public class Canvas {
     public double partialTick() {
         return partialTick;
     }
+
+    public double renderScale() {
+        return renderScale;
+    }
 }

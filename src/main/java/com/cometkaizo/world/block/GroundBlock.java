@@ -9,8 +9,8 @@ public class GroundBlock extends Block {
 
     protected String textureVariation;
 
-    public GroundBlock(Room room, Vector.ImmutableInt position, Args args) {
-        super(room, position, args);
+    public GroundBlock(Room.Layer layer, Vector.ImmutableInt position, Args args) {
+        super(layer, position, args);
     }
 
     @Override

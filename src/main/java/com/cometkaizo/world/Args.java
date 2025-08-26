@@ -1,5 +1,7 @@
 package com.cometkaizo.world;
 
+import com.cometkaizo.util.MathUtils;
+
 import java.util.Arrays;
 
 public class Args {
@@ -30,6 +32,11 @@ public class Args {
         var next = next();
         if (next.isBlank()) return def;
         else return Integer.parseInt(next);
+    }
+    public int nextSheetCol(int def) {
+        var next = next();
+        if (next.isBlank()) return def;
+        else return MathUtils.getSheetCol(next);
     }
 
     public void reset() {

@@ -1,5 +1,6 @@
 package com.cometkaizo.world.block;
 
+import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
 import com.cometkaizo.util.MathUtils;
 import com.cometkaizo.world.Args;
@@ -16,8 +17,8 @@ public class FallingPlatform extends CollidableEntity {
     protected int fallResetDuration = 60, fallAnimStartDuration = 30, resetDuration = 20, fallSolidDuration = 30;
     protected int fallTime = -1;
 
-    public FallingPlatform(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public FallingPlatform(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
         boundingBox = new BoundingBox(Vector.mutableDouble(position), Vector.immutable(1D, 1D));
     }
 
@@ -31,7 +32,11 @@ public class FallingPlatform extends CollidableEntity {
         boolean touchingPlayer = isTouching(room.player);
         if (fallTime == -1 && touchingPlayer) fallTime = 0;
         if (fallTime >= fallResetDuration) fallTime = -resetDuration;
-        else if (fallTime != -1) fallTime ++;
+        else if (fallTime != -1) {
+            if (fallTime == 0) Assets.sound("crunch").play();
+            if (fallTime == -resetDuration) Assets.sound("float_in").play();
+            fallTime ++;
+        }
     }
 
     @Override

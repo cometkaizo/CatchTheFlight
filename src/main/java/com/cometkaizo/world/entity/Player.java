@@ -7,10 +7,13 @@ import com.cometkaizo.game.event.RoomSwitchEvent;
 import com.cometkaizo.input.InputBindings;
 import com.cometkaizo.input.KeyBinding;
 import com.cometkaizo.input.MouseButtonBinding;
+import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
+import com.cometkaizo.screen.Dialogue;
 import com.cometkaizo.world.*;
 
 import java.awt.*;
+import java.util.Objects;
 
 public class Player extends CollidableEntity {
 
@@ -23,15 +26,16 @@ public class Player extends CollidableEntity {
     protected double groundFriction = 0.1;
     protected double airFriction = 0.5;
     protected ThrowableEntity held;
-    protected int deathRecoveryDuration = 5, killDuration = 20;
-    protected int deathTime = -1, jumpTime = -1, throwTime = -1, walkTime = -1;
+    protected int deathRecoveryDuration = 5, killDuration = 20, interactDuration = 5, dialogueInteractDuration = 2;
+    // jumpTime = -2 means jump not reset, -1 means jump reset
+    protected int deathTime = -1, jumpTime = -1, throwTime = -1, walkTime = -1, interactTime = -1, dialogueInteractTime = -1;
     protected int prevWalkTime = -1;
     protected double throwStrength = 3;
     protected boolean facingRight = true;
     protected double deathAngleMul;
 
-    public Player(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public Player(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
         this.boundingBox = new BoundingBox(Vector.mutable(0D, 0D), Vector.immutable(0.6D, 0.6D));
         game.getEventBus().register(KeyPressedEvent.class, this::onKeyPressed);
         game.getEventBus().register(MousePressedEvent.class, this::onMousePressed);
@@ -69,23 +73,31 @@ public class Player extends CollidableEntity {
         tickJumpTime();
         tickDeathTime();
         tickThrowTime();
+        tickInteractTime();
+        tickDialogueInteractTime();
     }
 
     private void tickCheckpoint() {
+        var prevCheckpoint = originalPosition;
         for (var checkpoint : room.checkpoints) {
             if (Math.abs(getX() - checkpoint.x) < 1) originalPosition = checkpoint;
         }
+        if (!Objects.equals(prevCheckpoint, originalPosition)) {
+            // todo: This sound effect gets a bit annoying, so I commented it out
+            //Assets.sound("notify").play();
+        }
     }
-
     private void tickJumpTime() {
-        if (jumpTime >= 2 || (collidedHorizontally && collidedVertically)) {
-            jumpTime = -1;
+        if (jumpTime >= 2 || collidedHorizontally && collidedVertically) {
+            jumpTime = -2;
             jumpDirection = -1;
         }
+        if (jumpTime == -2 && isAboveGround()) jumpTime = -1;
         if (jumpTime >= 0) jumpTime ++;
     }
     private void tickDeathTime() {
-        if (isFloating() || !isDeathRecoverable()) {
+        if (isFalling() || !isDeathRecoverable()) {
+            if (deathTime == deathRecoveryDuration) Assets.sound("fall").play();
             deathTime ++;
             if (deathTime >= killDuration) kill();
         } else deathTime = -1;
@@ -93,17 +105,33 @@ public class Player extends CollidableEntity {
     private void tickThrowTime() {
         if (throwTime > -1) throwTime --;
     }
+    private void tickInteractTime() {
+        if (game.getDialogue() != null) interactTime = interactDuration;
+        else if (interactTime >= 0) interactTime --;
+    }
+    private void tickDialogueInteractTime() {
+        if (dialogueInteractTime >= 0) dialogueInteractTime --;
+    }
+
 
     private boolean isDeathRecoverable() {
         return deathTime < deathRecoveryDuration;
     }
 
-    private boolean isFloating() {
-        return !isJumping() && !room.ground.containsSolid(boundingBox, this);
+    private boolean isFalling() {
+        return !isJumping() && !isAboveGround();
+    }
+
+    private boolean isAboveGround() {
+        return room.ground.containsSolid(boundingBox, this);
     }
 
     private boolean isJumping() {
-        return jumpTime != -1;
+        return jumpTime > -1;
+    }
+
+    private boolean isJumpAvailable() {
+        return jumpTime == -1;
     }
 
     private void tickMotion() {
@@ -129,7 +157,7 @@ public class Player extends CollidableEntity {
         double accel, maxVelocity;
 
         if (!isJumping()) {
-            if (inputDisabled()) return;
+            if (walkDisabled()) return;
 
             accel = diagonal ? this.diagWalkAccel : this.walkAccel;
             maxVelocity = diagonal ? this.maxDiagWalkVelocity : this.maxWalkVelocity;
@@ -178,10 +206,15 @@ public class Player extends CollidableEntity {
         motion.y = Math.min(Math.max(motion.y, -maxVelocity), maxVelocity);
 
         facingRight = motion.x >= 0;
+
+        if (walkTime % 5 == 0) Assets.sound("step").play();
     }
 
-    private boolean inputDisabled() {
+    private boolean walkDisabled() {
         return deathTime >= 1;
+    }
+    private boolean jumpDisabled() {
+        return deathTime >= deathRecoveryDuration;
     }
 
     @Override
@@ -193,9 +226,18 @@ public class Player extends CollidableEntity {
 
     private void onKeyPressed(KeyPressedEvent event) {
         KeyBinding input = event.input();
-        if (!inputDisabled() && input == InputBindings.JUMP.get()) {
+        if (!jumpDisabled() && input == InputBindings.JUMP.get()) {
             jump();
         }
+        if (input == InputBindings.INTERACT.get() && canInteractDialogue()) {
+            game.advanceDialogue();
+        }
+    }
+    public boolean canInteractDialogue() {
+        return dialogueInteractTime == -1;
+    }
+    public boolean canInteract() {
+        return interactTime == -1;
     }
 
     private void onMousePressed(MousePressedEvent event) {
@@ -215,6 +257,7 @@ public class Player extends CollidableEntity {
         }
     }
 
+    // todo: buffer the direction input like in celeste
     public void jump() {
         if (!canJump()) return;
 
@@ -241,14 +284,23 @@ public class Player extends CollidableEntity {
             jumpDirection = 6;
         }
         else jumpDirection = facingRight ? 0 : 4; // if not holding any direction
+
+        Assets.sound("jump").play();
     }
 
     public boolean canJump() {
-        return !isHolding() && throwTime == -1 && !isJumping() && !isFloating();
+        return !isHolding() && throwTime == -1 && isJumpAvailable()/* && !isFloating()*/;
     }
 
     public boolean isHolding() {
         return held != null;
+    }
+
+    public void onInteract() {
+        interactTime = interactDuration;
+    }
+    public void onInteractDialogue() {
+        dialogueInteractTime = dialogueInteractDuration;
     }
 
     @Override
@@ -353,5 +405,9 @@ public class Player extends CollidableEntity {
 
         g.setTransform(oT);
         g.setComposite(oC);
+    }
+
+    public static Dialogue dialogue(String msg, String textureVariation, Dialogue next) {
+        return new Dialogue(msg, "gui/player/" + textureVariation, next);
     }
 }

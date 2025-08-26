@@ -11,8 +11,8 @@ public abstract class CollidableEntity extends MovableEntity {
     protected boolean collidedHorizontally;
     protected boolean collidedVertically;
 
-    public CollidableEntity(Room room, Vector.MutableDouble position, Args args) {
-        super(room, position, args);
+    public CollidableEntity(Room.Layer layer, Vector.MutableDouble position, Args args) {
+        super(layer, position, args);
     }
 
     @Override
@@ -26,9 +26,14 @@ public abstract class CollidableEntity extends MovableEntity {
 
     @Override
     public void move(Vector.Double delta) {
+        if (!canCollideWhenMoving()) {
+            super.move(delta);
+            return;
+        }
+
         double prevX = position.x;
         double prevY = position.y;
-        room.walls.calcAllowedMovement(position, position.addedTo(delta), this, position, canMoveOffLedges());
+        layer.calcAllowedMovement(position, position.addedTo(delta), this, position, canMoveOffLedges());
 
         collidedHorizontally = !almostEquals(position.x - prevX, delta.getX());
         collidedVertically = !almostEquals(position.y - prevY, delta.getY());

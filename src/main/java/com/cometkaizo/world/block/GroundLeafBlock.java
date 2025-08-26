@@ -8,8 +8,8 @@ import com.cometkaizo.world.entity.Player;
 
 public class GroundLeafBlock extends Block {
 
-    public GroundLeafBlock(Room room, Vector.ImmutableInt position, Args args) {
-        super(room, position, args);
+    public GroundLeafBlock(Room.Layer layer, Vector.ImmutableInt position, Args args) {
+        super(layer, position, args);
     }
 
     @Override

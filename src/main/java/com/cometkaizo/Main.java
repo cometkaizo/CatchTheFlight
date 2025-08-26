@@ -2,6 +2,11 @@ package com.cometkaizo;
 
 import com.cometkaizo.app.GameDriver;
 
+// Sound X
+// Dialogue X
+// Collectibles
+// Art (the cozy bamboo cafe thing)
+// Game end
 public class Main {
     private static final GameDriver driver = new GameDriver(System.in);
 

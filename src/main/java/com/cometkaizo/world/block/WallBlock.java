@@ -9,8 +9,8 @@ public class WallBlock extends Block {
 
     protected String textureVariation;
 
-    public WallBlock(Room room, Vector.ImmutableInt position, Args args) {
-        super(room, position, args);
+    public WallBlock(Room.Layer layer, Vector.ImmutableInt position, Args args) {
+        super(layer, position, args);
     }
 
     @Override
