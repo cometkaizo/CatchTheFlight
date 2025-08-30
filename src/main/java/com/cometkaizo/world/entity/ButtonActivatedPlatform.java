@@ -2,6 +2,7 @@ package com.cometkaizo.world.entity;
 
 import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
+import com.cometkaizo.util.CollectionUtils;
 import com.cometkaizo.util.MathUtils;
 import com.cometkaizo.world.*;
 
@@ -50,7 +51,7 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
         setMotion(motion);
 
         for (var moved : room.walls.getEntitiesWithin(boundingBox)) {
-            if (moved instanceof MovableEntity movable) movable.setGroundMotion(motion);
+            if (moved instanceof MovableEntity movable && movable.canBeMovedBy(this)) movable.setGroundMotion(motion);
         }
         if (room.player.boundingBox.intersects(boundingBox)) room.player.setGroundMotion(motion);
     }
@@ -95,7 +96,7 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
     }
 
     @Override
-    protected void updateBoundingBox() {
+    protected void tickBoundingBox() {
         boundingBox.position.x = position.x;
         boundingBox.position.y = position.y;
     }
@@ -117,6 +118,10 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
     @Override
     public boolean isSolid(Entity entity) {
         return fallTime < fallSolidDuration;
+    }
+
+    public boolean isAttached(Entity entity) {
+        return !entity.getName().isEmpty() && CollectionUtils.arrayContains(attachedNames, entity.getName());
     }
 
     @Override

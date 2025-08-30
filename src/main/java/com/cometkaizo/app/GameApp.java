@@ -87,6 +87,7 @@ public class GameApp extends App implements Tickable {
 
         frame.add(renderer);
         frame.pack();
+        frame.setResizable(false);
         frame.setVisible(true);
     }
 

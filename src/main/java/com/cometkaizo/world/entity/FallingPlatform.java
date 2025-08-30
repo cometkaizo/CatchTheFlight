@@ -1,14 +1,13 @@
-package com.cometkaizo.world.block;
+package com.cometkaizo.world.entity;
 
 import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
+import com.cometkaizo.util.CollectionUtils;
 import com.cometkaizo.util.MathUtils;
 import com.cometkaizo.world.Args;
+import com.cometkaizo.world.Resettable;
 import com.cometkaizo.world.Room;
 import com.cometkaizo.world.Vector;
-import com.cometkaizo.world.entity.BoundingBox;
-import com.cometkaizo.world.entity.CollidableEntity;
-import com.cometkaizo.world.entity.Entity;
 
 import java.awt.*;
 
@@ -16,6 +15,7 @@ public class FallingPlatform extends CollidableEntity {
 
     protected int fallResetDuration = 60, fallAnimStartDuration = 30, resetDuration = 20, fallSolidDuration = 30;
     protected int fallTime = -1;
+    protected String[] attachedNames;
 
     public FallingPlatform(Room.Layer layer, Vector.MutableDouble position, Args args) {
         super(layer, position, args);
@@ -29,14 +29,20 @@ public class FallingPlatform extends CollidableEntity {
     }
 
     private void tickFallTime() {
-        boolean touchingPlayer = isTouching(room.player);
-        if (fallTime == -1 && touchingPlayer) fallTime = 0;
-        if (fallTime >= fallResetDuration) fallTime = -resetDuration;
-        else if (fallTime != -1) {
+        if (canStartFalling()) fallTime = 0;
+        if (fallTime >= fallResetDuration) {
+            fallTime = -resetDuration;
+            for (String attachedName : attachedNames) {
+                if (room.getBlockOrEntity(attachedName) instanceof Resettable r) r.reset();
+            }
+        } else if (fallTime != -1) {
             if (fallTime == 0) Assets.sound("crunch").play();
             if (fallTime == -resetDuration) Assets.sound("float_in").play();
             fallTime ++;
         }
+    }
+    private boolean canStartFalling() {
+        return fallTime == -1 && isTouching(room.player) && room.player.isAlive();
     }
 
     @Override
@@ -44,10 +50,21 @@ public class FallingPlatform extends CollidableEntity {
         return fallTime < fallSolidDuration;
     }
 
+    public boolean isAttached(Entity entity) {
+        return !entity.getName().isEmpty() && CollectionUtils.arrayContains(attachedNames, entity.getName());
+    }
+
     @Override
-    protected void updateBoundingBox() {
+    protected void tickBoundingBox() {
         boundingBox.position.x = position.x;
         boundingBox.position.y = position.y;
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        attachedNames = originalArgs.next("").split(" ");
+        fallTime = -1;
     }
 
     @Override
@@ -102,11 +119,5 @@ public class FallingPlatform extends CollidableEntity {
 
         g.setTransform(oT);
         g.setComposite(oC);
-    }
-
-    @Override
-    public void reset() {
-        super.reset();
-        fallTime = -1;
     }
 }

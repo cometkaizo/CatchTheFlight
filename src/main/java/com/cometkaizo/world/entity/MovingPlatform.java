@@ -62,7 +62,7 @@ public class MovingPlatform extends CollidableEntity {
     }
 
     @Override
-    protected void updateBoundingBox() {
+    protected void tickBoundingBox() {
         boundingBox.position.x = position.x;
         boundingBox.position.y = position.y;
     }

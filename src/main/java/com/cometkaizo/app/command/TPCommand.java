@@ -27,7 +27,7 @@ public class TPCommand extends Command {
         if (checkpointId < 0 || checkpointId >= checkpoints.size()) Main.err("Out of bounds, must be between 0 and " + (checkpoints.size() - 1) + " (inclusive)");
         else {
             var checkpoint = checkpoints.get(checkpointId);
-            game.getPlayer().setPosition(checkpoint);
+            game.getPlayer().setPosition(checkpoint.pos());
         }
     }
 

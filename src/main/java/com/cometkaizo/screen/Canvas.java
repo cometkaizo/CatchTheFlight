@@ -1,6 +1,7 @@
 package com.cometkaizo.screen;
 
 import com.cometkaizo.util.MathUtils;
+import com.cometkaizo.world.Vector;
 
 import java.awt.*;
 
@@ -93,13 +94,14 @@ public class Canvas {
         return screenHeight;
     }
 
-    void startRender(Graphics2D g, double cameraX, double cameraY, int width, int height, double partialTick) {
+    void startRender(Graphics2D g, Vector.Double prevCameraPos, Vector.Double cameraPos, int width, int height, double partialTick) {
         this.g = g;
-        this.cameraX = cameraX;
-        this.cameraY = cameraY;
         this.screenWidth = width;
         this.screenHeight = height;
         this.partialTick = partialTick;
+        this.cameraX = lerp(prevCameraPos.getX(), cameraPos.getX());
+        this.cameraY = lerp(prevCameraPos.getY(), cameraPos.getY());
+
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     }
 

@@ -3,13 +3,15 @@ package com.cometkaizo.world.entity;
 import com.cometkaizo.game.event.KeyPressedEvent;
 import com.cometkaizo.input.InputBindings;
 import com.cometkaizo.screen.Assets;
+import com.cometkaizo.util.CollectionUtils;
 import com.cometkaizo.world.Activateable;
 import com.cometkaizo.world.Args;
 import com.cometkaizo.world.Room;
 import com.cometkaizo.world.Vector;
 
-// button is an entity so that it can move on platforms
-// todo: make button step-activated, and make luggage be able to activate it (springs back up when stepped off)
+import java.util.Arrays;
+import java.util.Collections;
+
 public class Button extends CollidableEntity {
     protected boolean pressed;
     protected String[] targetNames;
@@ -36,7 +38,8 @@ public class Button extends CollidableEntity {
         else deactivate();
     }
 
-    private void activate() {
+    public void activate() {
+        if (pressed) return;
         pressed = true;
         for (String targetName : targetNames) {
             if (room.getBlockOrEntity(targetName) instanceof Activateable target) target.activate();
@@ -44,7 +47,8 @@ public class Button extends CollidableEntity {
         Assets.sound("click2").play();
     }
 
-    private void deactivate() {
+    public void deactivate() {
+        if (!pressed) return;
         pressed = false;
         Assets.sound("click").play();
     }
@@ -57,9 +61,19 @@ public class Button extends CollidableEntity {
     }
 
     @Override
-    protected void updateBoundingBox() {
+    protected void tickBoundingBox() {
         boundingBox.position.x = position.x;
         boundingBox.position.y = position.y;
+    }
+
+    @Override
+    public boolean canBeMovedBy(Entity other) {
+        return other instanceof ButtonActivatedPlatform platform && platform.isAttached(this);
+    }
+
+    @Override
+    public boolean canCollideWhenMoving() {
+        return false; // so that it can be in the same block as luggage on a moving platform
     }
 
     @Override

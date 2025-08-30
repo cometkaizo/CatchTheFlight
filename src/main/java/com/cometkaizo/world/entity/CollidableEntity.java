@@ -18,7 +18,7 @@ public abstract class CollidableEntity extends MovableEntity {
     @Override
     public void tick() {
         super.tick();
-        updateBoundingBox();
+        tickBoundingBox();
 
         if (collidedVertically) motion.y = 0;
         if (collidedHorizontally) motion.x = 0;
@@ -43,12 +43,12 @@ public abstract class CollidableEntity extends MovableEntity {
         return collidedHorizontally || collidedVertically;
     }
 
-    protected abstract void updateBoundingBox();
+    protected abstract void tickBoundingBox();
 
     @Override
     public void setPosition(double x, double y) {
         super.setPosition(x, y);
-        updateBoundingBox();
+        if (boundingBox != null) tickBoundingBox();
     }
 
     public boolean isSolid(Entity entity) {
@@ -65,5 +65,9 @@ public abstract class CollidableEntity extends MovableEntity {
 
     public boolean isTouching(CollidableEntity other, double tolerance) {
         return boundingBox.intersects(other.boundingBox.expanded(tolerance));
+    }
+
+    public boolean isFloating() {
+        return !room.ground.containsSolid(boundingBox, this);
     }
 }

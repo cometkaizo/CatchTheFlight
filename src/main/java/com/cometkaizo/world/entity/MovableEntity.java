@@ -28,6 +28,11 @@ public abstract class MovableEntity extends Entity {
         return true;
     }
 
+    // I think better design would be to check this in move() and setMotion() and setGroundMotion()
+    public boolean canBeMovedBy(Entity other) {
+        return false;
+    }
+
     protected boolean canMoveOffLedges() {
         return true;
     }

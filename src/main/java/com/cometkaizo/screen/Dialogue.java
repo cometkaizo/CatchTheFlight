@@ -9,6 +9,7 @@ import java.util.List;
 public class Dialogue implements Tickable, Renderable {
     public static final Image TEXTURE = Assets.texture("gui/dialogue");
     private static final Font FONT = Assets.font("BoldPixels").deriveFont(Font.PLAIN, 36);
+    private static final Color COLOR = new Color(101, 28, 13);
     public List<String> lines;
     public final String message;
     public final Image image;
@@ -31,7 +32,10 @@ public class Dialogue implements Tickable, Renderable {
         }
 
         var oF = g.getFont();
+        var oCr = g.getColor();
+
         g.setFont(FONT);
+        g.setColor(COLOR);
 
         int midX = canvas.getWidth() / 2;
         int top = canvas.getHeight() - canvas.toScreenLength(4.5);
@@ -50,6 +54,7 @@ public class Dialogue implements Tickable, Renderable {
         }
 
         g.setFont(oF);
+        g.setColor(oCr);
     }
 
     @Override

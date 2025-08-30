@@ -38,8 +38,9 @@ public class Room implements Tickable, Renderable, Resettable {
     public final World world;
     public String name;
     public ConnectionSet connectionSet = new ConnectionSet(null, null, null, null);
-    public List<Vector.ImmutableDouble> checkpoints;
+    public List<Checkpoint> checkpoints;
     public List<CameraLock> cameraLocks;
+    public List<Trigger> triggers;
     public Player player;
 
     public Layer ground, walls, background, foreground;
@@ -57,6 +58,7 @@ public class Room implements Tickable, Renderable, Resettable {
 
         checkpoints = walls.checkpoints;
         cameraLocks = background.cameraLocks;
+        triggers = walls.triggers;
     }
 
     void onAddedTo(World world) {
@@ -67,7 +69,10 @@ public class Room implements Tickable, Renderable, Resettable {
     }
 
     public void lockCamera(Vector.MutableDouble cameraPos) {
-        var closestLockPos = CollectionUtils.findMin(cameraLocks, l -> l.restrict(cameraPos).distanceSqr(player.getPosition()));
+        var closestLockPos = CollectionUtils.findMin(cameraLocks, l ->
+                l.isActive(player.getPosition()) ? Double.MIN_VALUE : // if force activate, return minimal value to override all other camera locks
+                        l.restrict(cameraPos).distanceSqr(player.getPosition())
+        );
         cameraPos.set(closestLockPos.restrict(cameraPos));
     }
 
@@ -107,8 +112,11 @@ public class Room implements Tickable, Renderable, Resettable {
         return name;
     }
 
-    public List<Vector.ImmutableDouble> getCheckpoints() {
+    public List<Checkpoint> getCheckpoints() {
         return checkpoints;
+    }
+    public Checkpoint getFirstCheckpoint() {
+        return (Checkpoint) walls.named.get("first");
     }
 
     @Override
@@ -303,13 +311,14 @@ public class Room implements Tickable, Renderable, Resettable {
     }
 
     public class Layer implements Tickable, Renderable, Resettable {
-        public static final String RESPAWN_ID = "R", CAMERA_LOCK_ID = "CL";
+        public static final String RESPAWN_ID = "R", CAMERA_LOCK_ID = "CL", TRIGGER_ID = "T";
         public final Room room = Room.this;
         public final Block[][] blocks;
         public final List<Entity> entities = new ArrayList<>();
         public final Map<String, Object> named = new HashMap<>();
-        public final List<Vector.ImmutableDouble> checkpoints;
+        public final List<Checkpoint> checkpoints;
         public final List<CameraLock> cameraLocks;
+        public final List<Trigger> triggers;
         public final String name;
         public final Image baseImage;
 
@@ -323,6 +332,7 @@ public class Room implements Tickable, Renderable, Resettable {
             var blocks = new ArrayList<List<Block>>();
             checkpoints = new ArrayList<>();
             cameraLocks = new ArrayList<>();
+            triggers = new ArrayList<>();
 
             {
                 for (int r = 0; r < lines.size(); r ++) {
@@ -338,11 +348,17 @@ public class Room implements Tickable, Renderable, Resettable {
 
                         // special values
                         if (RESPAWN_ID.equals(id)) {
-                            checkpoints.add(Vector.immutable((double)c, r));
+                            var checkpoint = new Checkpoint(r, c, args.nextInt(0), args.nextInt(0), args.nextInt(4), args.nextInt(4), args.next());
+                            checkpoints.add(checkpoint);
+                            if (!checkpoint.name.isEmpty()) named.put(checkpoint.name, checkpoint);
                             row.add(BlockTypes.BLOCKS.get("").apply(this, Vector.immutable(c, r), Args.EMPTY));
                             continue;
                         } else if (CAMERA_LOCK_ID.equals(id)) {
                             cameraLocks.add(CameraLock.of(args, r, c));
+                            row.add(BlockTypes.BLOCKS.get("").apply(this, Vector.immutable(c, r), Args.EMPTY));
+                            continue;
+                        } else if (TRIGGER_ID.equals(id)) {
+                            triggers.add(new Trigger(r, c, args.nextInt(0), args.nextInt(0), args.nextInt(4), args.nextInt(4), args.nextInt(-1)));
                             row.add(BlockTypes.BLOCKS.get("").apply(this, Vector.immutable(c, r), Args.EMPTY));
                             continue;
                         }
@@ -408,14 +424,14 @@ public class Room implements Tickable, Renderable, Resettable {
                         to - bbOffset;
 
                 var solidBlocks = getBlocksWithin(boundingBox, b -> b.isSolid(entity));
-                var solidEntities = getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity));
+                var solidEntities = getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
                 if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
                     boundingBox.position.y = originalBoundingBoxY;
                     return getTruncatedYMovement(boundingBox, solidBlocks, solidEntities, isMovingUp, bbOffset);
                 }
 
                 var groundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
-                var groundEntities = ground.getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity));
+                var groundEntities = ground.getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
                 if (!canMoveOffLedges && groundBlocks.isEmpty() && groundEntities.isEmpty()) {
                     return getTruncatedYMovement(boundingBox, prevGroundBlocks, groundEntities, !isMovingUp, bbOffset) - direction * 0.01;
                 }
@@ -459,14 +475,14 @@ public class Room implements Tickable, Renderable, Resettable {
                         to - bbOffset;
 
                 var solidBlocks = getBlocksWithin(boundingBox, block -> block.isSolid(entity));
-                var solidEntities = getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity));
+                var solidEntities = getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
                 if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
                     boundingBox.position.x = originalBoundingBoxX;
                     return getTruncatedXMovement(boundingBox, solidBlocks, solidEntities, isMovingRight, bbOffset);
                 }
 
                 var groundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
-                var groundEntities = ground.getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity));
+                var groundEntities = ground.getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
                 if (!canMoveOffLedges && groundBlocks.isEmpty() && groundEntities.isEmpty()) {
                     return getTruncatedXMovement(boundingBox, prevGroundBlocks, groundEntities, !isMovingRight, bbOffset) - direction * 0.01;
                 }
@@ -581,6 +597,12 @@ public class Room implements Tickable, Renderable, Resettable {
             for (var row : blocks) for (var b : row) b.reset();
         }
 
+        public <T extends Entity> T addEntity(T entity) {
+            entities.add(entity);
+            if (entity.hasName()) named.put(entity.getName(), entity);
+            return entity;
+        }
+
         public class Renderer implements Renderable, DataSerializable {
             public static final String OPTIONS_KEY = "darknessColor";
             private final Rectangle2D screen = new Rectangle2D.Float();
@@ -684,21 +706,66 @@ public class Room implements Tickable, Renderable, Resettable {
         }
     }
 
-    public interface CameraLock {
-        Vector.ImmutableDouble restrict(Vector.Double pos);
+    public record Checkpoint(Vector.ImmutableDouble pos, BoundingBox activationArea, String name) {
+        public Checkpoint(int r, int c, int left, int right, int up, int down, String name) {
+            // its mutable and I don't think records are supposed to be mutable but whatever
+            this(Vector.immutable(c + 0.5, r), new BoundingBox(Vector.mutable((double) c - left, r - down), Vector.immutable((double) left + 1 + right, up + 1 + down)), name);
+        }
+    }
 
-        static CameraLock of(Args args, int r, int c) {
+    public record Trigger(BoundingBox activationArea, int id) {
+        public static final int LUGGAGE_CP0 = 0, WIN = 1; // cp0 haha
+        public Trigger(int r, int c, int left, int right, int up, int down, int id) {
+            // its mutable and I don't think records are supposed to be mutable but whatever
+            this(new BoundingBox(Vector.mutable((double) c - left, r - down), Vector.immutable((double) left + 1 + right, up + 1 + down)), id);
+        }
+        public void activate(Player player) { // should this be called the other way, where Trigger is ticked?
+            switch (id) {
+                case LUGGAGE_CP0 -> luggageCP0(player);
+                case WIN -> win(player);
+                default -> throw new IllegalStateException("Unexpected trigger id: " + id);
+            }
+        }
+
+        private void luggageCP0(Player player) {
+            if (!player.isHolding()) return;
+            player.setPosition(player.getRoom().getFirstCheckpoint().pos());
+            player.getGame().teleportCamera();
+            player.getGame().hasLuggage = true;
+            Assets.sound("bump").play();
+        }
+
+        private void win(Player player) {
+            if (!player.isHolding()) return;
+            player.getGame().end();
+        }
+    }
+
+    public abstract static class CameraLock {
+        protected final BoundingBox activationArea;
+
+        protected CameraLock(int x, int y, int left, int right, int up, int down) {
+            this.activationArea = new BoundingBox(Vector.mutable((double) x - left, y - down), Vector.immutable((double) left + 1 + right, up + 1 + down));
+        }
+
+        public abstract Vector.ImmutableDouble restrict(Vector.Double pos);
+        public boolean isActive(Vector.Double pos) {
+            return activationArea.contains(pos);
+        }
+
+        public static CameraLock of(Args args, int r, int c) {
             return switch (args.next()) {
-                case "p" -> new Point(c, r);
-                case "h" -> new Horizontal(r, args.nextSheetCol(0), args.nextSheetCol(0));
-                case "v" -> new Vertical(c, args.nextInt(0), args.nextInt(0));
+                case "p" -> new Point(c, r, args.nextInt(0), args.nextInt(0), args.nextInt(0), args.nextInt(0));
+                case "h" -> new Horizontal(c, r, args.nextSheetCol(0), args.nextSheetCol(0), args.nextInt(0), args.nextInt(0), args.nextInt(0), args.nextInt(0));
+                case "v" -> new Vertical(c, r, args.nextInt(0), args.nextInt(0), args.nextInt(0), args.nextInt(0), args.nextInt(0), args.nextInt(0));
                 default -> throw new IllegalStateException("Unexpected value: " + args.next());
             };
         }
 
-        class Point implements CameraLock {
+        public static class Point extends CameraLock {
             protected final Vector.ImmutableDouble point;
-            public Point(int x, int y) {
+            public Point(int x, int y, int left, int right, int up, int down) {
+                super(x, y, left, right, up, down);
                 this.point = Vector.immutable((double)x, y);
             }
             @Override
@@ -706,28 +773,30 @@ public class Room implements Tickable, Renderable, Resettable {
                 return point;
             }
         }
-        class Horizontal implements CameraLock {
-            protected final double y, left, right;
-            public Horizontal(int y, int left, int right) {
+        public static class Horizontal extends CameraLock {
+            protected final double y, leftEndpoint, rightEndpoint;
+            public Horizontal(int x, int y, int leftEndpoint, int rightEndpoint, int left, int right, int up, int down) {
+                super(x, y, left, right, up, down);
                 this.y = y + 0.5;
-                this.left = left;
-                this.right = right;
+                this.leftEndpoint = leftEndpoint;
+                this.rightEndpoint = rightEndpoint;
             }
             @Override
             public Vector.ImmutableDouble restrict(Vector.Double pos) {
-                return Vector.immutable(MathUtils.clamp(pos.getX(), left, right), y);
+                return Vector.immutable(MathUtils.clamp(pos.getX(), leftEndpoint, rightEndpoint), y);
             }
         }
-        class Vertical implements CameraLock {
-            protected final int x, bottom, top;
-            public Vertical(int x, int bottom, int top) {
+        public static class Vertical extends CameraLock {
+            protected final int x, bottomEndpoint, topEndpoint;
+            public Vertical(int x, int y, int bottomEndpoint, int topEndpoint, int left, int right, int up, int down) {
+                super(x, y, left, right, up, down);
                 this.x = x;
-                this.bottom = bottom;
-                this.top = top;
+                this.bottomEndpoint = bottomEndpoint;
+                this.topEndpoint = topEndpoint;
             }
             @Override
             public Vector.ImmutableDouble restrict(Vector.Double pos) {
-                return Vector.immutable(x, MathUtils.clamp(pos.getY(), bottom, top));
+                return Vector.immutable(x, MathUtils.clamp(pos.getY(), bottomEndpoint, topEndpoint));
             }
         }
     }

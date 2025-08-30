@@ -48,6 +48,14 @@ public interface Vector<T extends Number> extends DataSerializable {
         return immutable(getX().doubleValue() / length, getY().doubleValue() / length);
     }
 
+    default ImmutableDouble withLength(double length) {
+        return normalized().scaledBy(length);
+    }
+
+    default boolean isZero() {
+        return isShorterThan(1E-7);
+    }
+
 
     static ImmutableInt immutable(int x, int y) {
         return new ImmutableInt(x, y);
@@ -148,8 +156,8 @@ public interface Vector<T extends Number> extends DataSerializable {
         }
     }
     interface Mutable<T extends Number> extends Vector<T> {
-        void setX(T x);
-        void setY(T y);
+        Mutable<T> setX(T x);
+        Mutable<T> setY(T y);
         Mutable<T> add(T x, T y);
         Mutable<T> subtract(T x, T y);
         Mutable<T> add(Vector<?> other);
@@ -162,13 +170,21 @@ public interface Vector<T extends Number> extends DataSerializable {
             return multiply(factor, factor);
         }
 
-        default void set(T x, T y) {
+        default Mutable<T> set(T x, T y) {
             setX(x);
             setY(y);
+            return this;
         }
-        default void set(Vector<T> other) {
+        default Mutable<T> set(Vector<T> other) {
             setX(other.getX());
             setY(other.getY());
+            return this;
+        }
+
+        Mutable<T> normalize();
+
+        default Mutable<T> setLength(double length) {
+            return normalize().scale(length);
         }
     }
     interface Immutable<T extends Number> extends Vector<T> {
@@ -219,13 +235,15 @@ public interface Vector<T extends Number> extends DataSerializable {
         }
 
         @Override
-        public void setX(Integer x) {
+        public MutableInt setX(Integer x) {
             this.x = x;
+            return this;
         }
 
         @Override
-        public void setY(Integer y) {
+        public MutableInt setY(Integer y) {
             this.y = y;
+            return this;
         }
 
         @Override
@@ -259,8 +277,8 @@ public interface Vector<T extends Number> extends DataSerializable {
 
         @Override
         public MutableInt multiply(double xFactor, double yFactor) {
-            this.x *= xFactor;
-            this.y *= yFactor;
+            this.x *= (int) xFactor;
+            this.y *= (int) yFactor;
             return this;
         }
 
@@ -282,6 +300,19 @@ public interface Vector<T extends Number> extends DataSerializable {
         @Override
         public ImmutableInt multipliedBy(double xFactor, double yFactor) {
             return new ImmutableInt((int) (x * xFactor), (int) (y * yFactor));
+        }
+
+        @Override
+        public MutableInt normalize() {
+            double length = length();
+            x = (int) (x / length);
+            y = (int) (y / length);
+            return this;
+        }
+
+        @Override
+        public MutableInt setLength(double length) {
+            return normalize().scale(length);
         }
 
         @Override
@@ -332,13 +363,15 @@ public interface Vector<T extends Number> extends DataSerializable {
         }
 
         @Override
-        public void setX(java.lang.Double x) {
+        public MutableDouble setX(java.lang.Double x) {
             this.x = x;
+            return this;
         }
 
         @Override
-        public void setY(java.lang.Double y) {
+        public MutableDouble setY(java.lang.Double y) {
             this.y = y;
+            return this;
         }
 
         @Override
@@ -392,11 +425,17 @@ public interface Vector<T extends Number> extends DataSerializable {
             return new ImmutableDouble(x * xFactor, y * yFactor);
         }
 
+        @Override
         public MutableDouble normalize() {
             double length = length();
             x /= length;
             y /= length;
             return this;
+        }
+
+        @Override
+        public MutableDouble setLength(double length) {
+            return normalize().scale(length);
         }
 
         @Override

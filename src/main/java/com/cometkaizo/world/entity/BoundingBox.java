@@ -44,16 +44,17 @@ public class BoundingBox {
         return getY() + getHeight() / 2;
     }
 
+    // it is way more important to pay attention to floating point inaccuracies than I thought
     public boolean intersects(BoundingBox other) {
-        return getLeft() < other.getRight() &&
-                other.getLeft() < getRight() &&
-                getBottom() < other.getTop() &&
-                other.getBottom() < getTop();
+        return getLeft() < other.getRight() - 1E-7 &&
+                other.getLeft() < getRight() - 1E-7 &&
+                getBottom() < other.getTop() - 1E-7 &&
+                other.getBottom() < getTop() - 1E-7;
     }
 
     public boolean contains(Vector.Double position) {
-        return position.getX() > getLeft() && position.getX() < getRight() &&
-                position.getY() > getBottom() && position.getY() < getTop();
+        return position.getX() > getLeft() + 1E-7 && position.getX() < getRight() - 1E-7 &&
+                position.getY() > getBottom() + 1E-7 && position.getY() < getTop() - 1E-7;
     }
 
     public BoundingBox copy() {

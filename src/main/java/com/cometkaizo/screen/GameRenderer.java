@@ -44,15 +44,9 @@ public class GameRenderer extends JPanel {
     }
 
     protected void render(Graphics2D g) {
-
         Dimension size = getSize(this.size);
 
-        var p = game.getPlayer();
-        game.getCameraPosition().setX(MathUtils.lerp(partialTick, p.getOldX(), p.getX()) + 2);
-        game.getCameraPosition().setY(MathUtils.lerp(partialTick, p.getOldY(), p.getY()) + 0.5);
-        game.room.lockCamera(game.getCameraPosition());
-
-        canvas.startRender(g, game.getCameraPosition().x, game.getCameraPosition().y, size.width, size.height, partialTick);
+        canvas.startRender(g, game.getPrevCameraPosition(), game.getCameraPosition(), size.width, size.height, partialTick);
 
         game.render(canvas);
 

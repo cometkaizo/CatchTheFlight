@@ -58,7 +58,7 @@ public abstract class Entity implements Tickable, Renderable, Resettable {
         return -1;
     }
     protected abstract String getTexturePath();
-    private Image getTexture() {
+    protected Image getTexture() {
         String texturePath = getTexturePath();
         if (texturePath == null) return null;
         return Assets.texture("entity/" + texturePath);
@@ -118,6 +118,14 @@ public abstract class Entity implements Tickable, Renderable, Resettable {
 
     public boolean isRemoved() {
         return removed;
+    }
+
+    public Room getRoom() {
+        return room;
+    }
+
+    public Game getGame() {
+        return game;
     }
 
     public interface Reader {

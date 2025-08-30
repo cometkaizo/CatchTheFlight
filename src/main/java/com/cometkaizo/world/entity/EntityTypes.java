@@ -1,7 +1,5 @@
 package com.cometkaizo.world.entity;
 
-import com.cometkaizo.world.block.FallingPlatform;
-
 import java.util.Map;
 
 public class EntityTypes {
@@ -10,10 +8,12 @@ public class EntityTypes {
             "p", Player::new,
             "wolfie", InfoGuy::new,
             "lg", Luggage::new,
+            "cr", Crate::new,
             "mp", MovingPlatform::new,
             "fp", FallingPlatform::new,
             "bp", ButtonActivatedPlatform::new,
-            "b", Button::new
+            "b", Button::new,
+            "c", Collectible::new
     );
 
 }

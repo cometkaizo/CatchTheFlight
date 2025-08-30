@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 public class GameDriver extends SystemDriver {
     private final GameApp app;
-    public static final int RENDERS_PER_TICK = 3;
+    public static final int RENDERS_PER_TICK = 3, FPS = 60, TPS = FPS / RENDERS_PER_TICK;
 
     public GameDriver(InputStream input) {
         super(new GameApp());
@@ -35,6 +35,6 @@ public class GameDriver extends SystemDriver {
                 if (renderCnt % RENDERS_PER_TICK == 0) app.tick();
                 app.render(renderCnt % RENDERS_PER_TICK / (double)RENDERS_PER_TICK);
             }
-        }, 1000 / 60, TimeUnit.MILLISECONDS);
+        }, 1000 / FPS, TimeUnit.MILLISECONDS);
     }
 }

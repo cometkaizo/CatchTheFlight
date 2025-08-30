@@ -15,7 +15,7 @@ public class SimpleEventBus implements EventBus {
 
     @Override
     public void post(Event event) {
-        listeners.forEach((type, listener) -> tryListen(type, listener, event));
+        listeners.forEach((type, listeners) -> tryListen(type, listeners, event));
     }
 
     @SuppressWarnings("unchecked")
