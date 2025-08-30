@@ -241,7 +241,7 @@ public class Game implements Tickable, Renderable, InputListener {
     }
 
     private boolean finishedInTime() {
-        return tick <= GameDriver.TPS * 4 * 60;
+        return tick <= GameDriver.TPS * 6 * 60;
     }
 
 

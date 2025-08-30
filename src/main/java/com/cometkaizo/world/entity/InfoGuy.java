@@ -19,7 +19,7 @@ public class InfoGuy extends NPCEntity {
                 dialogue("Go straight ahead again and turn down this time for the baggage drop-off.", "0",
                 dialogue("By the way, your suitcase can be thrown through leaves.", "0", null)))));
         else return Player.dialogue("HELP!!!", "1",
-                Player.dialogue("I lost my luggage and my flight leaves in 4 minutes!", "1",
+                Player.dialogue("I lost my luggage and my flight leaves in 6 minutes!", "1",
                 dialogue("Woah, calm down!", "1",
                 dialogue("It's probably in the lost and found. Go straight ahead and turn up.", "0", null))));
     }
