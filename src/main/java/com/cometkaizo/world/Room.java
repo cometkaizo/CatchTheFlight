@@ -1,5 +1,6 @@
 package com.cometkaizo.world;
 
+import com.cometkaizo.Main;
 import com.cometkaizo.game.Game;
 import com.cometkaizo.io.DataSerializable;
 import com.cometkaizo.io.data.CompoundData;
@@ -20,7 +21,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.List;
@@ -51,10 +51,10 @@ public class Room implements Tickable, Renderable, Resettable {
         this.name = path.getFileName().toString();
         this.namespace = name;
 
-        this.ground = new Layer("ground", Files.newInputStream(path.resolve("ground" + SAVE_EXTENSION)));
-        this.walls = new Layer("walls", Files.newInputStream(path.resolve("walls" + SAVE_EXTENSION)));
-        this.background = new Layer("background", Files.newInputStream(path.resolve("background" + SAVE_EXTENSION)));
-        this.foreground = new Layer("foreground", Files.newInputStream(path.resolve("foreground" + SAVE_EXTENSION)));
+        this.ground = new Layer("ground", Main.getResource(path.resolve("ground" + SAVE_EXTENSION).toString()));
+        this.walls = new Layer("walls", Main.getResource(path.resolve("walls" + SAVE_EXTENSION).toString()));
+        this.background = new Layer("background", Main.getResource(path.resolve("background" + SAVE_EXTENSION).toString()));
+        this.foreground = new Layer("foreground", Main.getResource(path.resolve("foreground" + SAVE_EXTENSION).toString()));
 
         checkpoints = walls.checkpoints;
         cameraLocks = background.cameraLocks;

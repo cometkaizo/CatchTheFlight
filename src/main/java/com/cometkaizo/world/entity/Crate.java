@@ -1,9 +1,5 @@
 package com.cometkaizo.world.entity;
 
-import com.cometkaizo.game.event.KeyPressedEvent;
-import com.cometkaizo.input.InputBindings;
-import com.cometkaizo.screen.Assets;
-import com.cometkaizo.world.Activateable;
 import com.cometkaizo.world.Args;
 import com.cometkaizo.world.Room;
 import com.cometkaizo.world.Vector;
@@ -19,6 +15,11 @@ public class Crate extends CollidableEntity {
     protected void tickBoundingBox() {
         boundingBox.position.x = position.x;
         boundingBox.position.y = position.y;
+    }
+
+    @Override
+    public boolean canBeMovedBy(Entity other) {
+        return other instanceof ButtonActivatedPlatform;
     }
 
     @Override

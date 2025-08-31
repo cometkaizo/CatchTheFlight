@@ -57,7 +57,7 @@ public class Game implements Tickable, Renderable, InputListener {
         eventBus.register(RoomSwitchEvent.class, this::onRoomSwitch);
 
         try {
-            world = new World(this, Path.of("src\\main\\resources\\world"));
+            world = new World(this, Path.of("\\world"));
             room = world.getRoom("lobby");
             if (room.getCheckpoints().isEmpty()) throw new IllegalStateException("No respawn position");
             player = room.player = new Player(room.walls, Vector.mutableDouble(room.getFirstCheckpoint().pos()), new Args(""));
