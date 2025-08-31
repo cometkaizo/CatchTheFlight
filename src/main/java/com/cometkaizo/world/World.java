@@ -1,5 +1,6 @@
 package com.cometkaizo.world;
 
+import com.cometkaizo.Main;
 import com.cometkaizo.game.Game;
 import com.cometkaizo.io.PathSerializable;
 import com.cometkaizo.io.data.CompoundData;
@@ -75,15 +76,11 @@ public class World implements PathSerializable, Tickable, Renderable {
     @Override
     public void read(Path path) throws IOException {
         rooms.clear();
-        File saveDirectory = path.toFile();
-        throwIfInvalidDir(saveDirectory);
 
-        File[] files = saveDirectory.listFiles();
-        if (files == null) return;
-//        throwIfNoInfoFile(files, path);
-
-        for (File file : files) {
-            addRoom(new Room(game, this, file.toPath()));
+        try (Scanner in = new Scanner(Main.getResource(path + "\\info.txt"))) {
+            for (var roomDir : in.nextLine().split(";")) {
+                addRoom(new Room(game, this, path.resolve(roomDir)));
+            }
         }
     }
 

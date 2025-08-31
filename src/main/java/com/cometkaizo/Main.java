@@ -2,6 +2,9 @@ package com.cometkaizo;
 
 import com.cometkaizo.app.GameDriver;
 
+import java.io.InputStream;
+import java.util.Objects;
+
 // Sound X
 // Dialogue X
 // Collectibles X
@@ -13,6 +16,7 @@ import com.cometkaizo.app.GameDriver;
 //     Restaurant -> soda or croissant
 // Background art instead of just random shapes
 // Art (the cozy bamboo cafe thing)
+// Make player render slightly lower to avoid render /
 public class Main {
     private static final GameDriver driver = new GameDriver(System.in);
 
@@ -35,5 +39,9 @@ public class Main {
     }
     public static void err(String message) {
         System.err.println(message);
+    }
+
+    public static InputStream getResource(String p) {
+        return Objects.requireNonNull(Main.class.getResourceAsStream(p.replaceAll("\\\\", "/")), "Cannot find resource: " + p);
     }
 }
