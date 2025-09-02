@@ -119,8 +119,12 @@ public class Game implements Tickable, Renderable, InputListener {
         }
 
         if (endFadeInTime == endDialogueStartDuration) {
-            if (finishedInTime()) setDialogue(Player.dialogue("I made it!", "0", Player.dialogue("Thanks for playing!", "0", null)));
-            else setDialogue(Player.dialogue("AHH! The plane took off already!", "2", Player.dialogue("ASO2 3DI;[FJO WM C_OWO[D;; K3 0f23F @#0KDSO 023KKSOD __=3= s33SDFEfff", "2", null)));
+            if (finishedInTime()) setDialogue(Player.dialogue("I made it!", "0",
+                    Player.dialogue("Thanks for playing!", "0", null)));
+            else if (finishedWayTooLate()) setDialogue(Player.dialogue("AHH! The plane took off already! And it's landed already too!", "2",
+                    Player.dialogue("ASO2 3DI;[FJO WM C_OWO[D;; K3 0f23F @#0KDSO 023KKSOD __=3= s33SDFEfff", "2", null)));
+            else setDialogue(Player.dialogue("AHH! The plane took off already!", "2",
+                    Player.dialogue("ASO2 3DI;[FJO WM C_OWO[D;; K3 0f23F @#0KDSO 023KKSOD __=3= s33SDFEfff", "2", null)));
         }
     }
 
@@ -242,6 +246,10 @@ public class Game implements Tickable, Renderable, InputListener {
 
     private boolean finishedInTime() {
         return tick <= GameDriver.TPS * 6 * 60;
+    }
+
+    private boolean finishedWayTooLate() {
+        return tick <= GameDriver.TPS * 90 * 60;
     }
 
 

@@ -46,6 +46,12 @@ public abstract class CollidableEntity extends MovableEntity {
     protected abstract void tickBoundingBox();
 
     @Override
+    public void reset() {
+        super.reset();
+        if (boundingBox != null) tickBoundingBox();
+    }
+
+    @Override
     public void setPosition(double x, double y) {
         super.setPosition(x, y);
         if (boundingBox != null) tickBoundingBox();

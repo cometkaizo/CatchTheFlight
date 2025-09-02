@@ -28,11 +28,13 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import static com.cometkaizo.util.MathUtils.almostEquals;
 import static java.lang.Math.*;
 
 public class Room implements Tickable, Renderable, Resettable {
 
     public static final String SAVE_EXTENSION = ".csv";
+    private static final double BLIP_AROUND_AMT = 0.4;
     public final Game game;
     public String namespace;
     public final World world;
@@ -406,8 +408,119 @@ public class Room implements Tickable, Renderable, Resettable {
             if (entity == null) return;
             var boundingBox = entity.getBoundingBox();
             if (boundingBox == null) return;
-            boundingBox.position.y = result.y = calcAllowedYMovement(from.getY(), to.getY(), entity, canMoveOffLedges);
-            boundingBox.position.x = result.x = calcAllowedXMovement(from.getX(), to.getX(), entity, canMoveOffLedges);
+
+            double bbOffsetX = from.getX() - boundingBox.getX();
+            double bbOffsetY = from.getY() - boundingBox.getY();
+
+            boolean xAxisAligned = almostEquals(from.getY(), to.getY());
+            boolean yAxisAligned = almostEquals(from.getX(), to.getX());
+            boolean axisAligned = xAxisAligned || yAxisAligned;
+
+            if (!axisAligned) {
+                result.y = calcAllowedYMovement(from.getY(), to.getY(), entity, canMoveOffLedges);
+                boundingBox.position.y = result.y - bbOffsetY;
+                result.x = calcAllowedXMovement(from.getX(), to.getX(), entity, canMoveOffLedges);
+                boundingBox.position.x = result.x - bbOffsetX;
+            } else if (xAxisAligned) {
+                calcAllowedOnlyXMovement(from, to, entity, result);
+            } else if (yAxisAligned) {
+                calcAllowedOnlyYMovement(from, to, entity, result);
+            }
+            boundingBox.position.x = result.x - bbOffsetX;
+            boundingBox.position.y = result.y - bbOffsetY;
+        }
+
+        private void calcAllowedOnlyYMovement(Vector.Double f, Vector.Double t, CollidableEntity entity, Vector.MutableDouble result) {
+            double from = f.getY(), to = t.getY();
+            var boundingBox = entity.getBoundingBox();
+            int direction = (int) signum(to - from);
+            boolean isMovingUp = direction == 1;
+            double originalBoundingBoxY = boundingBox.getY();
+            double bbOffsetY = from - originalBoundingBoxY;
+            double bbOffsetX = f.getX() - boundingBox.getX();
+
+            for (int y = (int) from; y != (int) to + direction; y += direction) {
+                boundingBox.position.y = y != (int) to ?
+                        (y - (int) from) + originalBoundingBoxY :
+                        to - bbOffsetY;
+
+                var solidBlocks = getBlocksWithin(boundingBox, block -> block.isSolid(entity));
+                var solidEntities = getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
+                if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
+                    boundingBox.position.y = result.y = getTruncatedYMovement(boundingBox, solidBlocks, solidEntities, isMovingUp, bbOffsetY);
+                    { // try blip
+                        if (solidBlocks.size() + solidEntities.size() == 1) {
+                            double xBeforeBlip = result.x;
+                            double left, right;
+                            if (!solidBlocks.isEmpty()) {
+                                left = solidBlocks.getFirst().getX();
+                                right = left + 1;
+                            } else {
+                                var c = (CollidableEntity) solidEntities.getFirst();
+                                left = c.getBoundingBox().getLeft();
+                                right = c.getBoundingBox().getRight();
+                            }
+                            if (boundingBox.getRight() - left < BLIP_AROUND_AMT) result.x -= boundingBox.getRight() - left;
+                            else if (right - boundingBox.getLeft() < BLIP_AROUND_AMT) result.x += right - boundingBox.getLeft();
+                            else return;
+                            if (containsSolid(boundingBox, entity)) {
+                                result.x = xBeforeBlip;
+                                return;
+                            }
+                            boundingBox.position.x = result.x - bbOffsetX;
+                        } else return;
+                    }
+                }
+            }
+
+            result.y = to;
+        }
+
+        private void calcAllowedOnlyXMovement(Vector.Double f, Vector.Double t, CollidableEntity entity, Vector.MutableDouble result) {
+            double from = f.getX(), to = t.getX();
+            var boundingBox = entity.getBoundingBox();
+            int direction = (int) signum(to - from);
+            boolean isMovingRight = direction == 1;
+            double originalBoundingBoxX = boundingBox.getX();
+            double bbOffsetX = from - originalBoundingBoxX;
+            double bbOffsetY = f.getY() - boundingBox.getY();
+
+            for (int x = (int) from; x != (int) to + direction; x += direction) {
+                boundingBox.position.x = x != (int) to ?
+                        (x - (int) from) + originalBoundingBoxX :
+                        to - bbOffsetX;
+
+                var solidBlocks = getBlocksWithin(boundingBox, block -> block.isSolid(entity));
+                var solidEntities = getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
+                if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
+                    result.x = getTruncatedXMovement(boundingBox, solidBlocks, solidEntities, isMovingRight, bbOffsetX);
+                    boundingBox.position.x = result.x - bbOffsetX;
+                    { // try blip
+                        if (solidBlocks.size() + solidEntities.size() == 1) {
+                            double yBeforeBlip = result.y;
+                            double top, bottom;
+                            if (!solidBlocks.isEmpty()) {
+                                bottom = solidBlocks.getFirst().getY();
+                                top = bottom + 1;
+                            } else {
+                                var c = (CollidableEntity) solidEntities.getFirst();
+                                bottom = c.getBoundingBox().getBottom();
+                                top = c.getBoundingBox().getTop();
+                            }
+                            if (top - boundingBox.getBottom() < BLIP_AROUND_AMT) result.y += top - boundingBox.getBottom();
+                            else if (boundingBox.getTop() - bottom < BLIP_AROUND_AMT) result.y -= boundingBox.getTop() - bottom;
+                            else return;
+                            if (containsSolid(boundingBox, entity)) {
+                                result.y = yBeforeBlip;
+                                return;
+                            }
+                            boundingBox.position.y = result.y - bbOffsetY;
+                        } else return;
+                    }
+                }
+            }
+
+            result.x = to;
         }
 
         private double calcAllowedYMovement(double from, double to, CollidableEntity entity, boolean canMoveOffLedges) {
@@ -525,8 +638,8 @@ public class Room implements Tickable, Renderable, Resettable {
         public List<Block> getBlocksWithin(BoundingBox boundingBox, Predicate<? super Block> condition) {
             int fromX = (int) floor(boundingBox.getLeft());
             int fromY = (int) floor(boundingBox.getBottom());
-            int toX = (int) floor(boundingBox.getRight() - 10E-7);
-            int toY = (int) floor(boundingBox.getTop() - 10E-7);
+            int toX = (int) floor(boundingBox.getRight() - 10E-5);
+            int toY = (int) floor(boundingBox.getTop() - 10E-5);
 
             List<Block> result = new ArrayList<>((abs(toX - fromX) + 1) * (abs(toY - fromY) + 1));
 
@@ -570,7 +683,7 @@ public class Room implements Tickable, Renderable, Resettable {
 
         public boolean containsSolid(BoundingBox boundingBox, Entity entity) {
             return !getBlocksWithin(boundingBox, block -> block.isSolid(entity)).isEmpty() ||
-                    entities.stream().anyMatch(e -> e instanceof CollidableEntity c && c.isSolid(entity) && c.getBoundingBox().intersects(boundingBox));
+                    !getEntitiesWithin(boundingBox, e -> e instanceof CollidableEntity c && c.isSolid(entity)).isEmpty();
         }
 
         public Object getBlockOrEntity(String name) {

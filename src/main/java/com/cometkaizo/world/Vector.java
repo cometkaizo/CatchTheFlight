@@ -2,6 +2,7 @@ package com.cometkaizo.world;
 
 import com.cometkaizo.io.DataSerializable;
 import com.cometkaizo.io.data.CompoundData;
+import com.cometkaizo.util.MathUtils;
 
 @SuppressWarnings("unused")
 public interface Vector<T extends Number> extends DataSerializable {
@@ -54,6 +55,11 @@ public interface Vector<T extends Number> extends DataSerializable {
 
     default boolean isZero() {
         return isShorterThan(1E-7);
+    }
+
+    default boolean almostEquals(Vector<?> other) {
+        return MathUtils.almostEquals(getX().doubleValue(), other.getX().doubleValue()) &&
+                MathUtils.almostEquals(getY().doubleValue(), other.getY().doubleValue());
     }
 
 

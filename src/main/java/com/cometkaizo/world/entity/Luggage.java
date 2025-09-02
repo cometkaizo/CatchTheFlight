@@ -81,7 +81,7 @@ public class Luggage extends ThrowableEntity {
     private void tickButtonPress() {
         if (isLanded() && groundMotion.isZero()) {
             for (var e : layer.entities) {
-                if (e instanceof Button b && isTouching(b, -0.1)) b.activate();
+                if (e instanceof Button b && isTouching(b, -0.1)) b.holdDownByEntity();
             }
         }
     }
@@ -135,7 +135,13 @@ public class Luggage extends ThrowableEntity {
 
     @Override
     public boolean canBeMovedBy(Entity other) {
-        return true;
+        return !isLanded() || // can be moved if not landed & aligned
+                directlyAbove(other); // or if it is landed, can only be moved if the mover is directly below it
+    }
+
+    private boolean directlyAbove(Entity other) {
+        if (!(other instanceof CollidableEntity c)) return false;
+        return c.boundingBox.position.addedTo(c.boundingBox.getWidth() / 2, 0D).almostEquals(position);
     }
 
     @Override

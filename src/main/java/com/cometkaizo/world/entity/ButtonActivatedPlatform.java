@@ -17,7 +17,7 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
     protected int moveAmt;
     protected double moveAmtLeft;
     protected double speed = 0.1;
-    protected int fallResetDuration = 60, fallAnimStartDuration = 30, resetDuration = 20, fallSolidDuration = 30;
+    protected final int fallResetDuration = 60, fallAnimStartDuration = 30, resetDuration = 20, fallSolidDuration = 30;
     protected int fallTime = -1, moveTime = -1;
     protected boolean moving;
     protected String[] attachedNames;
@@ -67,12 +67,14 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
         if (fallTime >= fallResetDuration) {
             fallTime = -resetDuration;
             position = Vector.mutableDouble(originalPosition);
-            for (String attachedName : attachedNames) {
-                if (room.getBlockOrEntity(attachedName) instanceof Resettable r) r.reset();
-            }
         }
         else if (fallTime != -1) {
             if (fallTime == 0) Assets.sound("crunch").play();
+            if (fallTime == fallAnimStartDuration) {
+                for (String attachedName : attachedNames) {
+                    if (room.getBlockOrEntity(attachedName) instanceof AnimatedResettable r) r.resetWithAnimation();
+                }
+            }
             if (fallTime == -resetDuration) Assets.sound("float_in").play();
             fallTime++;
         }
@@ -134,7 +136,6 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
         int screenX = canvas.toScreenX(getX() + 0.5);
         int screenY = canvas.toScreenY(getY() + 0.5);
 
-        double angle = 0;
         double translateX = 0, translateY = 0;
         double alpha = 1;
 
@@ -157,8 +158,6 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) alpha));
             g.translate(translateX, translateY);
             g.translate(screenX, screenY);
-            if (angle != 0)
-                g.rotate(angle);
             g.translate(-screenX, -screenY);
         }
 
