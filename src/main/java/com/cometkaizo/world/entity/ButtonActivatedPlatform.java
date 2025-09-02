@@ -93,6 +93,7 @@ public class ButtonActivatedPlatform extends CollidableEntity implements Activat
 
     @Override
     public void activate() {
+        if (moving) return;
         moving = true;
         moveTime = 0;
     }
