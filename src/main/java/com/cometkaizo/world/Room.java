@@ -396,15 +396,7 @@ public class Room implements Tickable, Renderable, Resettable {
             in.close();
         }
 
-        /*
-        allowed movement only works for blocks
-         */
-        public Vector.Double calcAllowedMovement(Vector.Double from, Vector.Double to, CollidableEntity entity, boolean canMoveOffLedges) {
-            Vector.MutableDouble result = new Vector.MutableDouble(0, 0);
-            calcAllowedMovement(from, to, entity, result, canMoveOffLedges);
-            return result;
-        }
-        public void calcAllowedMovement(Vector.Double from, Vector.Double to, CollidableEntity entity, Vector.MutableDouble result, boolean canMoveOffLedges) {
+        public void calcAllowedMovement(Vector.Double from, Vector.Double to, CollidableEntity entity, Vector.MutableDouble result, boolean canBlip) {
             if (entity == null) return;
             var boundingBox = entity.getBoundingBox();
             if (boundingBox == null) return;
@@ -416,21 +408,21 @@ public class Room implements Tickable, Renderable, Resettable {
             boolean yAxisAligned = almostEquals(from.getX(), to.getX());
             boolean axisAligned = xAxisAligned || yAxisAligned;
 
-            if (!axisAligned) {
-                result.y = calcAllowedYMovement(from.getY(), to.getY(), entity, canMoveOffLedges);
+//            if (!axisAligned) {
+                calcAllowedOnlyYMovement(from, to, entity, result, canBlip && yAxisAligned);
                 boundingBox.position.y = result.y - bbOffsetY;
-                result.x = calcAllowedXMovement(from.getX(), to.getX(), entity, canMoveOffLedges);
+                calcAllowedOnlyXMovement(from, to, entity, result, canBlip && xAxisAligned);
                 boundingBox.position.x = result.x - bbOffsetX;
-            } else if (xAxisAligned) {
-                calcAllowedOnlyXMovement(from, to, entity, result);
-            } else if (yAxisAligned) {
-                calcAllowedOnlyYMovement(from, to, entity, result);
-            }
-            boundingBox.position.x = result.x - bbOffsetX;
-            boundingBox.position.y = result.y - bbOffsetY;
+//            } else if (xAxisAligned) {
+//                calcAllowedOnlyXMovement(from, to, entity, result, canBlip);
+//            } else if (yAxisAligned) {
+//                calcAllowedOnlyYMovement(from, to, entity, result, canBlip);
+//            }
+//            boundingBox.position.x = result.x - bbOffsetX;
+//            boundingBox.position.y = result.y - bbOffsetY;
         }
 
-        private void calcAllowedOnlyYMovement(Vector.Double f, Vector.Double t, CollidableEntity entity, Vector.MutableDouble result) {
+        private void calcAllowedOnlyYMovement(Vector.Double f, Vector.Double t, CollidableEntity entity, Vector.MutableDouble result, boolean canBlip) {
             double from = f.getY(), to = t.getY();
             var boundingBox = entity.getBoundingBox();
             int direction = (int) signum(to - from);
@@ -448,7 +440,7 @@ public class Room implements Tickable, Renderable, Resettable {
                 var solidEntities = getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
                 if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
                     boundingBox.position.y = result.y = getTruncatedYMovement(boundingBox, solidBlocks, solidEntities, isMovingUp, bbOffsetY);
-                    { // try blip
+                    if (canBlip) { // try blip
                         if (solidBlocks.size() + solidEntities.size() == 1) {
                             double xBeforeBlip = result.x;
                             double left, right;
@@ -469,14 +461,14 @@ public class Room implements Tickable, Renderable, Resettable {
                             }
                             boundingBox.position.x = result.x - bbOffsetX;
                         } else return;
-                    }
+                    } else return;
                 }
             }
 
             result.y = to;
         }
 
-        private void calcAllowedOnlyXMovement(Vector.Double f, Vector.Double t, CollidableEntity entity, Vector.MutableDouble result) {
+        private void calcAllowedOnlyXMovement(Vector.Double f, Vector.Double t, CollidableEntity entity, Vector.MutableDouble result, boolean canBlip) {
             double from = f.getX(), to = t.getX();
             var boundingBox = entity.getBoundingBox();
             int direction = (int) signum(to - from);
@@ -495,7 +487,7 @@ public class Room implements Tickable, Renderable, Resettable {
                 if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
                     result.x = getTruncatedXMovement(boundingBox, solidBlocks, solidEntities, isMovingRight, bbOffsetX);
                     boundingBox.position.x = result.x - bbOffsetX;
-                    { // try blip
+                    if (canBlip) { // try blip
                         if (solidBlocks.size() + solidEntities.size() == 1) {
                             double yBeforeBlip = result.y;
                             double top, bottom;
@@ -516,20 +508,19 @@ public class Room implements Tickable, Renderable, Resettable {
                             }
                             boundingBox.position.y = result.y - bbOffsetY;
                         } else return;
-                    }
+                    } else return;
                 }
             }
 
             result.x = to;
         }
 
-        private double calcAllowedYMovement(double from, double to, CollidableEntity entity, boolean canMoveOffLedges) {
+        /*private double calcAllowedYMovement(double from, double to, CollidableEntity entity) {
             var boundingBox = entity.getBoundingBox();
             int direction = (int) signum(to - from);
             boolean isMovingUp = direction == 1;
             double originalBoundingBoxY = boundingBox.getY();
             double bbOffset = from - originalBoundingBoxY;
-            var prevGroundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
 
             for (int y = (int) from; y != (int) to + direction; y += direction) {
                 boundingBox.position.y = y != (int) to ?
@@ -542,18 +533,35 @@ public class Room implements Tickable, Renderable, Resettable {
                     boundingBox.position.y = originalBoundingBoxY;
                     return getTruncatedYMovement(boundingBox, solidBlocks, solidEntities, isMovingUp, bbOffset);
                 }
-
-                var groundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
-                var groundEntities = ground.getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
-                if (!canMoveOffLedges && groundBlocks.isEmpty() && groundEntities.isEmpty()) {
-                    return getTruncatedYMovement(boundingBox, prevGroundBlocks, groundEntities, !isMovingUp, bbOffset) - direction * 0.01;
-                }
-                prevGroundBlocks = groundBlocks;
             }
 
             boundingBox.position.y = originalBoundingBoxY;
             return to;
         }
+
+        private double calcAllowedXMovement(double from, double to, CollidableEntity entity) {
+            var boundingBox = entity.getBoundingBox();
+            int direction = (int) signum(to - from);
+            boolean isMovingRight = direction == 1;
+            double originalBoundingBoxX = boundingBox.getX();
+            double bbOffset = from - originalBoundingBoxX;
+
+            for (int x = (int) from; x != (int) to + direction; x += direction) {
+                boundingBox.position.x = x != (int) to ?
+                        (x - (int) from) + originalBoundingBoxX :
+                        to - bbOffset;
+
+                var solidBlocks = getBlocksWithin(boundingBox, block -> block.isSolid(entity));
+                var solidEntities = getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
+                if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
+                    boundingBox.position.x = originalBoundingBoxX;
+                    return getTruncatedXMovement(boundingBox, solidBlocks, solidEntities, isMovingRight, bbOffset);
+                }
+            }
+
+            boundingBox.position.x = originalBoundingBoxX;
+            return to;
+        }*/
 
         private static double getTruncatedYMovement(BoundingBox boundingBox, List<Block> solidBlocks, List<Entity> solidEntities, boolean truncateUnder, double bbOffset) {
             if (solidBlocks.isEmpty() && solidEntities.isEmpty()) return boundingBox.position.y;
@@ -572,38 +580,6 @@ public class Room implements Tickable, Renderable, Resettable {
                 if (topMostEntity != null) result = max(result, topMostEntity.getBoundingBox().getTop());
                 return result;
             }
-        }
-
-        private double calcAllowedXMovement(double from, double to, CollidableEntity entity, boolean canMoveOffLedges) {
-            var boundingBox = entity.getBoundingBox();
-            int direction = (int) signum(to - from);
-            boolean isMovingRight = direction == 1;
-            double originalBoundingBoxX = boundingBox.getX();
-            double bbOffset = from - originalBoundingBoxX;
-            var prevGroundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
-
-            for (int x = (int) from; x != (int) to + direction; x += direction) {
-                boundingBox.position.x = x != (int) to ?
-                        (x - (int) from) + originalBoundingBoxX :
-                        to - bbOffset;
-
-                var solidBlocks = getBlocksWithin(boundingBox, block -> block.isSolid(entity));
-                var solidEntities = getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
-                if (!solidBlocks.isEmpty() || !solidEntities.isEmpty()) {
-                    boundingBox.position.x = originalBoundingBoxX;
-                    return getTruncatedXMovement(boundingBox, solidBlocks, solidEntities, isMovingRight, bbOffset);
-                }
-
-                var groundBlocks = ground.getBlocksWithin(boundingBox, block -> block.isSolid(entity));
-                var groundEntities = ground.getEntitiesWithin(boundingBox, e -> e != entity && e instanceof CollidableEntity c && c.isSolid(entity));
-                if (!canMoveOffLedges && groundBlocks.isEmpty() && groundEntities.isEmpty()) {
-                    return getTruncatedXMovement(boundingBox, prevGroundBlocks, groundEntities, !isMovingRight, bbOffset) - direction * 0.01;
-                }
-                prevGroundBlocks = groundBlocks;
-            }
-
-            boundingBox.position.x = originalBoundingBoxX;
-            return to;
         }
 
         private static double getTruncatedXMovement(BoundingBox boundingBox, List<Block> solidBlocks, List<Entity> solidEntities, boolean truncateToLeft, double bbOffset) {

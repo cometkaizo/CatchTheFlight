@@ -20,7 +20,7 @@ public abstract class MovableEntity extends Entity {
     }
 
     protected void move(Vector.Double delta) {
-        if (canCollideWhenMoving()) layer.calcAllowedMovement(position, position.addedTo(delta), null, position, canMoveOffLedges());
+        if (canCollideWhenMoving()) layer.calcAllowedMovement(position, position.addedTo(delta), null, position, canBlip());
         else position.add(delta);
     }
 
@@ -33,7 +33,7 @@ public abstract class MovableEntity extends Entity {
         return false;
     }
 
-    protected boolean canMoveOffLedges() {
+    protected boolean canBlip() {
         return true;
     }
 

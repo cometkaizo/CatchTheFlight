@@ -337,8 +337,8 @@ public class Player extends CollidableEntity {
     }
 
     @Override
-    protected boolean canMoveOffLedges() {
-        return true;//isJumping(); // todo: preventing moving off ledges is still janky when you dash into a wall with no floor in front of it
+    protected boolean canBlip() {
+        return isJumping();
     }
 
     public boolean displayingCollectible() {

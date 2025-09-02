@@ -33,7 +33,7 @@ public abstract class CollidableEntity extends MovableEntity {
 
         double prevX = position.x;
         double prevY = position.y;
-        layer.calcAllowedMovement(position, position.addedTo(delta), this, position, canMoveOffLedges());
+        layer.calcAllowedMovement(position, position.addedTo(delta), this, position, canBlip());
 
         collidedHorizontally = !almostEquals(position.x - prevX, delta.getX());
         collidedVertically = !almostEquals(position.y - prevY, delta.getY());
