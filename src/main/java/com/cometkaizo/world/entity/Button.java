@@ -86,6 +86,8 @@ public class Button extends CollidableEntity implements AnimatedResettable {
     public void reset() {
         super.reset();
         pressed = false;
+        heldDownByPlayer = false;
+        heldDownByEntity = false;
         targetNames = originalArgs.next("").split(" ");
         resetTime = -1;
     }

@@ -50,8 +50,8 @@ public class Luggage extends ThrowableEntity {
     public void tick() {
         updateMotion();
         tickAlignment();
-        tickButtonPress();
         super.tick();
+        tickButtonPress();
         tickDeathTime();
     }
 

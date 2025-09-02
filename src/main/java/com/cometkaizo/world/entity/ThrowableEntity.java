@@ -18,11 +18,12 @@ public abstract class ThrowableEntity extends CollidableEntity {
     protected void updateHeldPosition() {
         if (isHeld()) {
             setPosition(room.player.position.x, room.player.boundingBox.getTop() + 0.1);
+            if (boundingBox != null) tickBoundingBox();
         }
     }
 
     public boolean isHeld() {
-        return room.player.held != null;
+        return room.player.isHolding();
     }
 
     public void launch(Vector.Double motion) {
