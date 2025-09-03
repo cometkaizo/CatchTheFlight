@@ -53,6 +53,7 @@ public class Luggage extends ThrowableEntity {
         super.tick();
         tickButtonPress();
         tickDeathTime();
+        pushPlayerOutIfLanded();
     }
 
     private void tickAlignment() {
@@ -104,7 +105,7 @@ public class Luggage extends ThrowableEntity {
     }
 
     private boolean isLanded() {
-        return !isHeld() && motion.isShorterThan(0.03);
+        return !isHeld() && motion.isShorterThan(0.1);
     }
 
     private void updateMotion() {
@@ -118,6 +119,28 @@ public class Luggage extends ThrowableEntity {
             if (deathTime == 5) Assets.sound("fall2").play();
             if (deathTime == 20) kill();
         } else deathTime = -1;
+    }
+
+    private void pushPlayerOutIfLanded() {
+        final double pushStep = 0.1;
+        if (isLanded() && isTouching(room.player)) {
+            var pushDirection = room.player.motion.scaledBy(-1);
+            if (pushDirection.isZero()) pushDirection = room.player.position.subtractedBy(position);
+            if (pushDirection.isZero()) pushDirection = Vector.immutable(-1D, 0D);
+            pushDirection = pushDirection.withLength(pushStep);
+
+            // keep moving the player until they are out of this luggage
+            solid = false;
+            while (isTouching(room.player)) {
+                var prevPos = Vector.immutableDouble(room.player.position);
+                room.player.move(pushDirection);
+
+                boolean movedTooLittle = prevPos.subtractedBy(room.player.position).isShorterThan(pushStep - 0.01);
+                if (movedTooLittle) break;
+            }
+
+            if (!isTouching(room.player)) solid = true;
+        }
     }
 
     public boolean isFloating() {

@@ -15,6 +15,8 @@ import com.cometkaizo.world.*;
 import java.awt.*;
 import java.util.Objects;
 
+import static java.lang.Math.*;
+
 public class Player extends CollidableEntity {
 
     protected double jumpAccel = 1, diagJumpAccel = jumpAccel * Math.cos(Math.toRadians(45));
@@ -25,11 +27,11 @@ public class Player extends CollidableEntity {
     protected double holdSpeedAmp = 0.6;
     protected double friction = 0.1;
     protected ThrowableEntity held;
-    protected int deathRecoveryDuration = 5, killDuration = 20, interactDuration = 5, dialogueInteractDuration = 2;
+    protected int deathRecoveryDuration = 5, killDuration = 20, interactDuration = 5, dialogueInteractDuration = 2, jumpBufferDuration = 3;
     // jumpTime = -2 means jump not reset, -1 means jump reset
-    protected int deathTime = -1, jumpTime = -1, throwTime = -1, walkTime = -1, interactTime = -1, dialogueInteractTime = -1;
+    protected int deathTime = -1, jumpTime = -1, throwTime = -1, walkTime = -1, interactTime = -1, dialogueInteractTime = -1, jumpBufferTime = -1;
     protected int prevWalkTime = -1;
-    protected double throwStrength = 3;
+    protected double throwStrength = 2.1/*3*/;
     protected boolean facingRight = true;
     protected double deathAngleMul;
     protected Collectible displayedCollectible;
@@ -66,11 +68,20 @@ public class Player extends CollidableEntity {
         super.tick();
         trySwitchRoom();
 
+        tickJumpBuffer();
         tickJumpTime();
         tickDeathTime();
         tickThrowTime();
         tickInteractTime();
         tickDialogueInteractTime();
+    }
+
+    private void tickJumpBuffer() {
+        if (canJump() && jumpBufferTime > -1) {
+            jump();
+            jumpBufferTime = -1;
+        }
+        if (jumpBufferTime > -1) jumpBufferTime --;
     }
 
     private void tickCheckpoint() {
@@ -112,7 +123,11 @@ public class Player extends CollidableEntity {
         } else deathTime = -1;
     }
     private void tickThrowTime() {
-        if (throwTime > -1) throwTime --;
+        if (throwTime > -1) {
+            throwTime--;
+// xn: testing the lowest we can set throwTime so that jumping optimally will not let you go into the luggage
+//            if (throwTime == -1) jump();
+        }
     }
     private void tickInteractTime() {
         if (game.getDialogue() != null) interactTime = interactDuration;
@@ -244,10 +259,10 @@ public class Player extends CollidableEntity {
     }
 
     private boolean walkDisabled() {
-        return deathTime >= 1 || displayingCollectible() || game.ended();
+        return deathTime >= 1 || displayingCollectible() || game.ended() || game.hasDialogue();
     }
     private boolean jumpDisabled() {
-        return deathTime >= deathRecoveryDuration || displayingCollectible() || game.ended();
+        return deathTime >= deathRecoveryDuration || displayingCollectible() || game.ended() || game.hasDialogue();
     }
 
     @Override
@@ -292,25 +307,55 @@ public class Player extends CollidableEntity {
     }
 
     private boolean canThrowHeld() {
-        return !game.ended();
+        return !game.ended() && !game.hasDialogue();
     }
-    public void throwHeld(double x, double y) {
-        double approximateThrowDistance = 3;
-        var throwDelta = Vector.mutable(Math.floor(x) + 0.5, Math.floor(y)).subtract(position).setLength(approximateThrowDistance);
+    public void throwHeld(double mouseX, double mouseY) {
+        double targetX = floor(mouseX) + 0.5, targetY = floor(mouseY);
+        long startXFactor = clamp(round(targetX - getX()), -1, 1);
+        long startYFactor = clamp(round(targetY - getY()), -1, 1);
         if (held != null) {
-            held.setPosition(position);
-            if (room.walls.containsSolid(held.boundingBox, held)) held.setPosition((int)getX() + 0.5, (int)getY());
-            held.launch(throwDelta.normalize()/**/.scale(throwStrength).add(motion));
+            double halfWidth = boundingBox.getWidth() / 2;
+            double halfHeldWidth = held.boundingBox.getWidth() / 2; // we assume that the held item is anchored at the midpoint on the bottom of its bounding box
+            double heldHeight = held.boundingBox.getHeight();
+
+            var startPosition = Vector.immutable(
+                    startXFactor == 1 ? getX() + halfWidth + halfHeldWidth + 1E-5 : startXFactor == -1 ? getX() - halfWidth - halfHeldWidth + 1E-5 : getX(),
+                    startYFactor == 1 ? boundingBox.getTop() + 1E-5 : startYFactor == -1 ? boundingBox.getBottom() - heldHeight - 1E-5 : getY());
+
+            held.setPosition(startPosition);
+            if (room.walls.containsSolid(held.boundingBox, held)) held.setPosition(position);
+            if (room.walls.containsSolid(held.boundingBox, held)) held.setPosition((int)getX() + halfHeldWidth, (int)getY());
+            if (!isTouching(held) && held instanceof Luggage l) l.solid = true;
+
+            var throwDelta = Vector.mutable(targetX, targetY).subtract(held.position);
+            held.launch(throwDelta.normalize().scale(throwStrength).add(motion));
             held = null;
-            throwTime = 7;
+            throwTime = 2;
             Assets.sound("throw").play();
         }
     }
+    /* // xn: old throwing code
 
-    // todo: buffer the direction input like in celeste
+    public void throwHeld(double mouseX, double mouseY) {
+        double targetX = floor(mouseX) + 0.5, targetY = floor(mouseY);
+        var throwDelta = Vector.mutable(targetX, targetY).subtract(position);
+        if (held != null) {
+            held.setPosition(position);
+            if (room.walls.containsSolid(held.boundingBox, held)) held.setPosition((int)getX() + 0.5, (int)getY());
+            held.launch(throwDelta.normalize().scale(throwStrength).add(motion));
+            held = null;
+            throwTime = 5;
+                    Assets.sound("throw").play();
+        }
+    }
+     */
+
     public void jump() {
         if (isHolding()) Assets.sound("disallowed").play();
-        if (!canJump()) return;
+        if (!canJump()) {
+            jumpBufferTime = jumpBufferDuration;
+            return;
+        }
 
         jumpTime = 0;
 
@@ -331,8 +376,6 @@ public class Player extends CollidableEntity {
 
     public void onInteract() {
         interactTime = interactDuration;
-    }
-    public void onInteractDialogue() {
         dialogueInteractTime = dialogueInteractDuration;
     }
 
