@@ -8,7 +8,6 @@ import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
 import com.cometkaizo.screen.Renderable;
 import com.cometkaizo.util.CollectionUtils;
-import com.cometkaizo.util.MathUtils;
 import com.cometkaizo.world.block.Block;
 import com.cometkaizo.world.block.BlockTypes;
 import com.cometkaizo.world.entity.*;
@@ -872,7 +871,8 @@ public class Room implements Tickable, Renderable, Resettable {
             }
             @Override
             public Vector.ImmutableDouble restrict(Vector.Double pos) {
-                return Vector.immutable(MathUtils.clamp(pos.getX(), leftEndpoint, rightEndpoint), y);
+                double a = pos.getX();
+                return Vector.immutable(clamp(a, leftEndpoint, rightEndpoint), y);
             }
         }
         public static class Vertical extends CameraLock {
@@ -885,7 +885,8 @@ public class Room implements Tickable, Renderable, Resettable {
             }
             @Override
             public Vector.ImmutableDouble restrict(Vector.Double pos) {
-                return Vector.immutable(x, MathUtils.clamp(pos.getY(), bottomEndpoint, topEndpoint));
+                double a = pos.getY();
+                return Vector.immutable(x, clamp(a, bottomEndpoint, topEndpoint));
             }
         }
     }

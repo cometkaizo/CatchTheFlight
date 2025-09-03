@@ -3,7 +3,6 @@ package com.cometkaizo.world.entity;
 import com.cometkaizo.screen.Assets;
 import com.cometkaizo.screen.Canvas;
 import com.cometkaizo.util.CollectionUtils;
-import com.cometkaizo.util.MathUtils;
 import com.cometkaizo.world.Args;
 import com.cometkaizo.world.Resettable;
 import com.cometkaizo.world.Room;
@@ -106,7 +105,7 @@ public class FallingPlatform extends CollidableEntity {
         }
 
         {
-            alpha = MathUtils.clamp(alpha, 0, 1);
+            alpha = Math.clamp(alpha, 0, 1);
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) alpha));
             g.translate(translateX, translateY);
             g.translate(screenX, screenY);

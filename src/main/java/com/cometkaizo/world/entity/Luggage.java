@@ -185,7 +185,7 @@ public class Luggage extends ThrowableEntity {
             translateY = Math.pow((deathTime + canvas.partialTick() - deathRecoveryDuration) * 0.2, 2.5) * 25;
             alpha = Math.pow(1 - (deathTime + canvas.partialTick() - deathRecoveryDuration) / (20 - deathRecoveryDuration) * 1, 5);
         }
-        alpha = MathUtils.clamp(alpha, 0, 1);
+        alpha = Math.clamp(alpha, 0, 1);
 
         {
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) alpha));

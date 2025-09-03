@@ -12,7 +12,6 @@ import com.cometkaizo.input.MouseButtonBinding;
 import com.cometkaizo.io.data.CompoundData;
 import com.cometkaizo.screen.*;
 import com.cometkaizo.screen.Canvas;
-import com.cometkaizo.util.MathUtils;
 import com.cometkaizo.world.*;
 import com.cometkaizo.world.entity.Collectible;
 import com.cometkaizo.world.entity.Player;
@@ -100,7 +99,7 @@ public class Game implements Tickable, Renderable, InputListener {
 
         var toTarget = targetCameraPosition.subtract(cameraPosition);
         double desiredSpeed = toTarget.length() * 0.3;
-        cameraSpeed = MathUtils.clamp(desiredSpeed, cameraSpeed - 0.1, cameraSpeed + 0.05);
+        cameraSpeed = Math.clamp(desiredSpeed, cameraSpeed - 0.1, cameraSpeed + 0.05);
         prevCameraPosition.set(cameraPosition);
         cameraPosition.add(toTarget.scale(cameraSpeed));
     }
@@ -183,7 +182,7 @@ public class Game implements Tickable, Renderable, InputListener {
                                 1 - (endFadeInTime + canvas.partialTick() - endFadeInFinishDuration) / (endFadeInDuration - endFadeInFinishDuration) :
                                 1;
             } else alpha = 0;
-            alpha = MathUtils.clamp(alpha, 0, 1);
+            alpha = Math.clamp(alpha, 0, 1);
             g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) alpha));
             canvas.renderImage(Assets.texture("gui/black"), 0, 0);
             g.setComposite(oC);

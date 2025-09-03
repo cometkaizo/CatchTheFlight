@@ -9,10 +9,6 @@ public class MathUtils {
         return Math.abs(b - a) < 1.0E-5D;
     }
 
-    public static double clamp(double a, double lo, double hi) {
-        return Math.max(lo, Math.min(a, hi));
-    }
-
     public static int getSheetCol(String str) {
         str = str.toUpperCase();
         int col = 0;
