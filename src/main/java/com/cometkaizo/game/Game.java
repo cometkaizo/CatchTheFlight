@@ -355,7 +355,7 @@ public class Game implements Tickable, Renderable, InputListener {
 
     public void setDialogue(Dialogue dialogue) {
         this.dialogue = dialogue;
-        player.onInteractDialogue();
+        player.onInteract();
     }
 
     public boolean hasDialogue() {
