@@ -46,6 +46,7 @@ public interface Vector<T extends Number> extends DataSerializable {
     }
     default ImmutableDouble normalized() {
         double length = length();
+        if (length < 1E-5) return immutable(0D, 0D);
         return immutable(getX().doubleValue() / length, getY().doubleValue() / length);
     }
 
@@ -434,8 +435,12 @@ public interface Vector<T extends Number> extends DataSerializable {
         @Override
         public MutableDouble normalize() {
             double length = length();
-            x /= length;
-            y /= length;
+            if (length < 1E-5) {
+                x = y = 0;
+            } else {
+                x /= length;
+                y /= length;
+            }
             return this;
         }
 
